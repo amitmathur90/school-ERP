@@ -90,7 +90,7 @@ let server;
 db.init()
   .then(() => {
     server = app.listen(PORT, () => {
-      console.log(`\n  Law College ERP API running at http://localhost:${PORT}`);
+      console.log(`\n  Law College ERP API running at ${process.env.FRONTEND_URL}:${PORT}`);
       console.log(`  Database: PostgreSQL (${process.env.DATABASE_URL ? "via DATABASE_URL" : `${process.env.PGHOST || "localhost"}/${process.env.PGDATABASE || "law_college_erp"}`})\n`);
     });
   })
