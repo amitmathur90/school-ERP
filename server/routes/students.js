@@ -24,7 +24,7 @@ async function getStudent(id) {
 }
 
 router.get("/", authenticate, async (req, res) => {
-  let rows = await db.all("SELECT * FROM students");
+  let rows = await db.all("SELECT * FROM students ORDER BY created_at DESC NULLS LAST");
   if (req.user.role === "hod" && req.user.department) {
     const deptCourseIds = new Set((await db.all("SELECT id FROM courses WHERE department = ?", [req.user.department])).map((c) => c.id));
     rows = rows.filter((r) => deptCourseIds.has(r.course_id));

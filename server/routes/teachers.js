@@ -14,7 +14,7 @@ async function generateEmployeeId() {
 }
 
 router.get("/", async (req, res) => {
-  const rows = await db.all("SELECT * FROM teachers ORDER BY name");
+  const rows = await db.all("SELECT * FROM teachers ORDER BY id DESC");
   res.json(rows.map((r) => rowToCamel(r, TEACHER_FIELDS)));
 });
 
