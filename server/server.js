@@ -7,6 +7,13 @@ const db = require("./db");
 
 const app = express();
 
+// Render (and most PaaS hosts) put the app behind a reverse proxy, which
+// sets X-Forwarded-For. Without telling Express to trust it, express-rate-limit
+// can't reliably tell requests apart by IP (logs ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// and may end up rate-limiting all users as if they were one client). `1` means
+// trust exactly one hop — matches Render's single reverse-proxy setup.
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
+
 // Reduces response payload size over the network — meaningful once you have
 // hundreds of students' data (especially photos) flowing through list endpoints.
 app.use(compression());
