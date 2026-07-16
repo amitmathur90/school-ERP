@@ -5,7 +5,7 @@ import {
   Scale, LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
   Wallet, LogOut, CheckCircle, XCircle, Clock, Search, Plus,
   Trash2, ChevronRight, User, Lock, FileText,
-  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer
+  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu
 } from "lucide-react";
 
 /**
@@ -375,6 +375,34 @@ const GlobalStyles = () => (
     .badge-admin { background: var(--ink); color: #fff; }
     .badge-teacher { background: var(--gold-light); color: var(--ink); }
     .badge-student { background: #EDEAE0; color: var(--charcoal); }
+
+    .erp-hamburger { display: none; }
+    .erp-backdrop { display: none; }
+    @media (max-width: 860px) {
+      .erp-hamburger {
+        display: flex; align-items: center; justify-content: center;
+        position: fixed; top: 14px; left: 14px; z-index: 300;
+        width: 38px; height: 38px; border-radius: 8px;
+        background: var(--ink); color: #fff; border: none; cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      }
+      .erp-sidebar {
+        position: fixed !important; left: 0; top: 0; z-index: 260;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+      }
+      .erp-sidebar.open { transform: translateX(0); }
+      .erp-backdrop.open {
+        display: block; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.4); z-index: 250;
+      }
+      .erp-main-content { padding-top: 56px !important; }
+      .erp-main-content > div { padding-left: 16px !important; padding-right: 16px !important; }
+    }
+    @media (max-width: 640px) {
+      .erp-root [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    }
 
     .print-header { display: none; }
     @media print {
@@ -1719,19 +1747,25 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
 /* ============================== PORTAL SHELL ============================== */
 
 function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, children }) {
+  const [navOpen, setNavOpen] = useState(false);
+  const handleNav = (key) => { onNav(key); setNavOpen(false); };
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
+      <button className="erp-hamburger" aria-label="Toggle navigation" onClick={() => setNavOpen((v) => !v)}>
+        <Menu size={18} />
+      </button>
+      {navOpen && <div className="erp-backdrop open" onClick={() => setNavOpen(false)} />}
       <div style={{
         width: 232, background: "var(--ink)", flexShrink: 0, display: "flex",
         flexDirection: "column", position: "sticky", top: 0, height: "100vh",
-      }} className="erp-sidebar">
+      }} className={`erp-sidebar ${navOpen ? "open" : ""}`}>
         <div style={{ padding: "22px 18px" }}><CollegeMark light /></div>
         <div style={{ padding: "0 16px 8px" }}>
           <span className={`badge-role badge-${roleLabel.toLowerCase() === "administrator" ? "admin" : roleLabel.toLowerCase() === "faculty" ? "teacher" : "student"}`}>{roleLabel}</span>
         </div>
         <div style={{ flex: 1, marginTop: 8 }}>
           {navItems.map((n) => (
-            <div key={n.key} className={`nav-item ${active === n.key ? "active" : ""}`} onClick={() => onNav(n.key)}>
+            <div key={n.key} className={`nav-item ${active === n.key ? "active" : ""}`} onClick={() => handleNav(n.key)}>
               {n.icon}{n.label}
             </div>
           ))}
@@ -1743,7 +1777,7 @@ function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, c
           </button>
         </div>
       </div>
-      <div style={{ flex: 1, minWidth: 0, background: "var(--parchment)", minHeight: "100vh", overflowX: "auto" }}>
+      <div className="erp-main-content" style={{ flex: 1, minWidth: 0, background: "var(--parchment)", minHeight: "100vh", overflowX: "auto" }}>
         <div style={{ padding: "28px 32px", maxWidth: 1180 }}>{children}</div>
       </div>
     </div>
