@@ -300,7 +300,8 @@ CREATE TABLE IF NOT EXISTS messages (
   from_name       TEXT,
   from_role       TEXT,
   text            TEXT NOT NULL,
-  date            TEXT NOT NULL
+  date            TEXT NOT NULL,
+  is_read         BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS emails (
@@ -383,6 +384,7 @@ async function init() {
   await ensureColumn("transactions", "gateway_payment_id", "TEXT");
   await ensureColumn("transactions", "gateway_order_id", "TEXT");
   await ensureColumn("fees", "last_reminder_at", "TEXT");
+  await ensureColumn("messages", "is_read", "BOOLEAN NOT NULL DEFAULT false");
   await ensureColumn("teachers", "employee_id", "TEXT");
   await ensureColumn("teachers", "gender", "TEXT");
   await ensureColumn("teachers", "dob", "TEXT");

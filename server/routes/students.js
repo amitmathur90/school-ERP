@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { rowToCamel, camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
 const { composeRegistrationEmail } = require("../emailTemplates");
+const { sendMail } = require("../mailer");
 const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
 const router = express.Router();
@@ -87,6 +88,7 @@ router.post("/:id/finalize", async (req, res) => {
     "INSERT INTO emails (id, to_email, subject, body, date) VALUES (?, ?, ?, ?, ?)",
     [uid("mail"), student.email, subject, body, new Date().toISOString()]
   );
+  sendMail({ to: student.email, subject, text: body });
 
   res.json(student);
 });

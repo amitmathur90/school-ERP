@@ -15,6 +15,7 @@
 
 const db = require("./db");
 const { composeFeeDueReminderEmail } = require("./emailTemplates");
+const { sendMail } = require("./mailer");
 
 const REMINDER_WINDOW_DAYS = 30;   // "due within 1 month"
 const REMINDER_COOLOFF_DAYS = 7;   // don't re-notify the same student more than once a week
@@ -61,6 +62,7 @@ async function checkAndSendFeeDueReminders() {
         "INSERT INTO emails (id, to_email, subject, body, date) VALUES (?, ?, ?, ?, ?)",
         [uid("mail"), student.email, subject, body, new Date().toISOString()]
       );
+      sendMail({ to: student.email, subject, text: body });
 
       await db.run("UPDATE fees SET last_reminder_at = ? WHERE student_id = ?", [new Date().toISOString(), fee.student_id]);
       sent++;

@@ -47,6 +47,12 @@ services:
         sync: false
       - key: PAYU_BASE_URL
         value: https://test.payu.in/_payment
+      - key: SMTP_USER
+        sync: false              # Gmail address used to actually send admission/fee-receipt/reminder emails
+      - key: SMTP_PASS
+        sync: false              # Gmail App Password (myaccount.google.com/apppasswords) — not your normal Gmail password
+      - key: SMTP_FROM_NAME
+        value: Sir Pratap Vidhi Mahavidyalaya
 
   # ---------------- Frontend (static Vite build) ----------------
   - type: web

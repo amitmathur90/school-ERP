@@ -125,7 +125,7 @@ const TRANSACTION_FIELDS = [
 
 const MESSAGE_FIELDS = [
   ["id", "id"], ["toStudentId", "to_student_id"], ["fromName", "from_name"],
-  ["fromRole", "from_role"], ["text", "text"], ["date", "date"],
+  ["fromRole", "from_role"], ["text", "text"], ["date", "date"], ["isRead", "is_read"],
 ];
 
 const EMAIL_FIELDS = [

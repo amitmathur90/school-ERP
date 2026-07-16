@@ -1773,8 +1773,15 @@ function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, c
         </div>
         <div style={{ flex: 1, marginTop: 8 }}>
           {navItems.map((n) => (
-            <div key={n.key} className={`nav-item ${active === n.key ? "active" : ""}`} onClick={() => handleNav(n.key)}>
-              {n.icon}{n.label}
+            <div key={n.key} className={`nav-item ${active === n.key ? "active" : ""}`} onClick={() => handleNav(n.key)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 11 }}>{n.icon}{n.label}</span>
+              {!!n.count && (
+                <span style={{
+                  background: "var(--danger)", color: "#fff", borderRadius: 999,
+                  minWidth: 18, height: 18, padding: "0 5px", fontSize: 11, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>{n.count > 99 ? "99+" : n.count}</span>
+              )}
             </div>
           ))}
         </div>
@@ -4129,6 +4136,12 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const gradeList = store.grades[student.id] || [];
   const myTransactions = store.transactions.filter((t) => t.studentId === student.id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const myMessages = store.messages.filter((m) => m.toStudentId === student.id);
+  const unreadCount = myMessages.filter((m) => !m.isRead).length;
+
+  useEffect(() => {
+    if (page === "inbox" && unreadCount > 0) actions.markMessagesRead(student.id).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const nav = [
     { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
@@ -4138,7 +4151,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
     { key: "grades", label: "Grades", icon: <Award size={16} /> },
     { key: "fees", label: "Fees & Payments", icon: <Wallet size={16} /> },
     { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
-    { key: "inbox", label: "Notifications", icon: <Bell size={16} /> },
+    { key: "inbox", label: "Notifications", icon: <Bell size={16} />, count: unreadCount },
     { key: "notices", label: "Notice Board", icon: <Bell size={16} /> },
   ];
 
@@ -4246,25 +4259,61 @@ function StudentPortal({ user, store, actions, onLogout }) {
 
       {page === "fees" && (
         <>
-          <SectionHeader
-            eyebrow="Accounts" title="Fees & Payments"
-            action={fee && (fee.totalFee - fee.paid) > 0 && (
-              store.paymentsConfig?.available ? (
-                <button className="btn btn-primary" onClick={() => setPayingOnline(true)}><Wallet size={14} /> Pay Online</button>
-              ) : (
-                <span style={{ fontSize: 12, color: "var(--slate)" }}>Online payment isn't turned on right now — pay by cash at the accounts office.</span>
-              )
-            )}
-          />
-          <div className="card" style={{ marginBottom: 16 }}><div className="card-body">
-            {!fee ? <EmptyState icon={<Wallet size={28} />} title="No fee record" note="Please contact the accounts office." /> : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-                <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Total Fee</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700 }}>₹{fee.totalFee.toLocaleString("en-IN")}</div></div>
-                <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Paid</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--success)" }}>₹{fee.paid.toLocaleString("en-IN")}</div></div>
-                <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Balance</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--danger)" }}>₹{(fee.totalFee - fee.paid).toLocaleString("en-IN")}</div></div>
-              </div>
-            )}
-          </div></div>
+          {(() => {
+            const balanceDue = fee ? fee.totalFee - fee.paid : 0;
+            const daysUntilDue = fee?.dueDate ? Math.ceil((new Date(fee.dueDate) - new Date()) / 86400000) : null;
+            const isOverdue = balanceDue > 0 && daysUntilDue !== null && daysUntilDue < 0;
+            const isDueSoon = balanceDue > 0 && daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 7;
+            const payLabel = fee?.plan ? "Pay EMI Now" : "Pay Now";
+            return (
+              <>
+                <SectionHeader
+                  eyebrow="Accounts" title="Fees & Payments"
+                  action={balanceDue > 0 && (
+                    store.paymentsConfig?.available ? (
+                      <button className={`btn ${isOverdue || isDueSoon ? "btn-danger" : "btn-primary"}`} onClick={() => setPayingOnline(true)}>
+                        <Wallet size={14} /> {isOverdue || isDueSoon ? payLabel : "Pay Online"}
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--slate)" }}>Online payment isn't turned on right now — pay by cash at the accounts office.</span>
+                    )
+                  )}
+                />
+                {(isOverdue || isDueSoon) && (
+                  <div className="card" style={{ marginBottom: 16, background: isOverdue ? "var(--danger-bg)" : "var(--warn-bg)", borderColor: isOverdue ? "var(--danger)" : "var(--warn)" }}>
+                    <div className="card-body" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Clock size={20} color={isOverdue ? "var(--danger)" : "var(--warn)"} />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13.5, color: "var(--ink)" }}>
+                            {isOverdue
+                              ? `Payment Overdue by ${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) === 1 ? "" : "s"}`
+                              : daysUntilDue === 0 ? "Payment Due Today" : `Payment Due in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}`}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--slate)" }}>
+                            {fee.plan ? `Next EMI of ₹${Number(fee.plan.installmentAmount).toLocaleString("en-IN")}` : `₹${balanceDue.toLocaleString("en-IN")}`} due on {fmtDate(fee.dueDate)}.
+                          </div>
+                        </div>
+                      </div>
+                      {store.paymentsConfig?.available && (
+                        <button className="btn btn-danger btn-sm" onClick={() => setPayingOnline(true)}><Wallet size={13} /> {payLabel}</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="card" style={{ marginBottom: 16 }}><div className="card-body">
+                  {!fee ? <EmptyState icon={<Wallet size={28} />} title="No fee record" note="Please contact the accounts office." /> : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
+                      <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Total Fee</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700 }}>₹{fee.totalFee.toLocaleString("en-IN")}</div></div>
+                      <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Paid</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--success)" }}>₹{fee.paid.toLocaleString("en-IN")}</div></div>
+                      <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Balance</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--danger)" }}>₹{balanceDue.toLocaleString("en-IN")}</div></div>
+                      <div><div style={{ fontSize: 11, color: "var(--slate)", textTransform: "uppercase" }}>Due Date</div><div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: isOverdue ? "var(--danger)" : "inherit" }}>{fee.dueDate ? fmtDate(fee.dueDate) : "—"}</div></div>
+                    </div>
+                  )}
+                </div></div>
+              </>
+            );
+          })()}
 
           {fee?.plan && (
             <div className="card" style={{ marginBottom: 16 }}><div className="card-body">
@@ -4874,6 +4923,14 @@ export default function App() {
     sendMessage: async (msg) => {
       const created = await api.post("/messages", msg);
       setStore((prev) => ({ ...prev, messages: [created, ...prev.messages] }));
+    },
+
+    markMessagesRead: async (studentId) => {
+      await api.patch("/messages/mark-all-read", { studentId });
+      setStore((prev) => ({
+        ...prev,
+        messages: prev.messages.map((m) => (m.toStudentId === studentId ? { ...m, isRead: true } : m)),
+      }));
     },
 
     // ---- Dynamic CSV import (admin only) ----

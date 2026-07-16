@@ -18,4 +18,16 @@ router.post("/", authenticate, async (req, res) => {
   res.status(201).json(rowToCamel(row, MESSAGE_FIELDS));
 });
 
+// PATCH /api/messages/mark-all-read  { studentId } — a student marks all of
+// their own notifications read (called when they open the Notifications page).
+router.patch("/mark-all-read", authenticate, async (req, res) => {
+  const studentId = req.user.role === "student" ? req.user.id : req.body.studentId;
+  if (!studentId) return res.status(400).json({ error: "studentId is required." });
+  if (req.user.role === "student" && req.user.id !== studentId) {
+    return res.status(403).json({ error: "You can only mark your own notifications as read." });
+  }
+  await db.run("UPDATE messages SET is_read = true WHERE to_student_id = ? AND is_read = false", [studentId]);
+  res.json({ ok: true });
+});
+
 module.exports = router;

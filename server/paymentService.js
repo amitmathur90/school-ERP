@@ -8,6 +8,7 @@
 const db = require("./db");
 const { rowToCamel, TRANSACTION_FIELDS } = require("./fieldMap");
 const { composeFeeReceiptEmail } = require("./emailTemplates");
+const { sendMail } = require("./mailer");
 
 function uid(p) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
 
@@ -112,6 +113,7 @@ async function recordPayment(params) {
     "INSERT INTO emails (id, to_email, subject, body, date) VALUES (?, ?, ?, ?, ?)",
     [uid("mail"), student.email, subject, body, new Date().toISOString()]
   );
+  sendMail({ to: student.email, subject, text: body });
 
   const transaction = rowToCamel(txnRow, TRANSACTION_FIELDS);
   transaction.additionalFees = additionalFees || [];
