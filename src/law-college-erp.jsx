@@ -1743,7 +1743,7 @@ function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, c
           </button>
         </div>
       </div>
-      <div style={{ flex: 1, background: "var(--parchment)", minHeight: "100vh" }}>
+      <div style={{ flex: 1, minWidth: 0, background: "var(--parchment)", minHeight: "100vh", overflowX: "auto" }}>
         <div style={{ padding: "28px 32px", maxWidth: 1180 }}>{children}</div>
       </div>
     </div>
