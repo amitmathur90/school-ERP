@@ -27,8 +27,17 @@ types.setTypeParser(types.builtins.INT8, (val) => (val === null ? null : parseIn
 const connectionString = process.env.DATABASE_URL ||
   `postgresql://${process.env.PGUSER || "postgres"}:${process.env.PGPASSWORD || "postgres"}@${process.env.PGHOST || "localhost"}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || "law_college_erp"}`;
 
+// Hosted Postgres (Render, Heroku, Neon, Supabase, Railway, ...) requires
+// SSL, using certs that aren't in Node's default trusted CA list — without
+// this, connecting fails with a self-signed-certificate error. A local
+// Postgres install has no SSL configured at all, so this is off by default
+// and only turned on when DATABASE_URL is set (the standard signal that
+// you're pointed at a hosted provider) or when explicitly requested.
+const useSSL = process.env.DB_SSL === "true" || (!!process.env.DATABASE_URL && process.env.DB_SSL !== "false");
+
 const pool = new Pool({
   connectionString,
+  ssl: useSSL ? { rejectUnauthorized: false } : false,
   max: 20,                      // up to 20 concurrent connections in the pool — tune based on your Postgres server's own max_connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -132,12 +141,24 @@ CREATE TABLE IF NOT EXISTS courses (
 
 CREATE TABLE IF NOT EXISTS teachers (
   id            TEXT PRIMARY KEY,
+  employee_id   TEXT UNIQUE,
   name          TEXT NOT NULL,
   email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  phone         TEXT,
+  gender        TEXT,
+  dob           TEXT,
+  qualification TEXT,
+  experience    TEXT,
+  address       TEXT,
+  joining_date  TEXT,
   subject       TEXT,
   department    TEXT,
-  phone         TEXT
+  designation   TEXT,
+  role          TEXT NOT NULL DEFAULT 'faculty',
+  status        TEXT NOT NULL DEFAULT 'active',
+  photo_data    TEXT,
+  photo_name    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS students (
@@ -247,7 +268,8 @@ CREATE TABLE IF NOT EXISTS fees (
   plan_tenure_months  INTEGER,
   plan_installment    NUMERIC,
   plan_emis_paid      INTEGER,
-  extra_fields        TEXT
+  extra_fields        TEXT,
+  last_reminder_at    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -357,6 +379,26 @@ async function init() {
   await ensureColumn("transactions", "gateway", "TEXT");
   await ensureColumn("transactions", "gateway_payment_id", "TEXT");
   await ensureColumn("transactions", "gateway_order_id", "TEXT");
+  await ensureColumn("fees", "last_reminder_at", "TEXT");
+  await ensureColumn("teachers", "employee_id", "TEXT");
+  await ensureColumn("teachers", "gender", "TEXT");
+  await ensureColumn("teachers", "dob", "TEXT");
+  await ensureColumn("teachers", "qualification", "TEXT");
+  await ensureColumn("teachers", "experience", "TEXT");
+  await ensureColumn("teachers", "address", "TEXT");
+  await ensureColumn("teachers", "joining_date", "TEXT");
+  await ensureColumn("teachers", "designation", "TEXT");
+  await ensureColumn("teachers", "role", "TEXT NOT NULL DEFAULT 'faculty'");
+  await ensureColumn("teachers", "status", "TEXT NOT NULL DEFAULT 'active'");
+  await ensureColumn("teachers", "photo_data", "TEXT");
+  await ensureColumn("teachers", "photo_name", "TEXT");
+
+  // Backfill employee IDs for any teachers created before this field existed.
+  const missingEmpId = await db.all("SELECT id FROM teachers WHERE employee_id IS NULL ORDER BY id");
+  for (let i = 0; i < missingEmpId.length; i++) {
+    const empId = `EMP-${new Date().getFullYear()}-${String(i + 1).padStart(3, "0")}`;
+    await db.run("UPDATE teachers SET employee_id = ? WHERE id = ?", [empId, missingEmpId[i].id]);
+  }
   await pool.query(INDEX_SQL);
 
   // One-time cleanup for any rows written before status normalization existed.

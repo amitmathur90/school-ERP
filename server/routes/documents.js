@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const db = require("../db");
 const { rowToCamel, DOCUMENT_FIELDS } = require("../fieldMap");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ const upload = multer({
 });
 
 // GET /api/documents -> flat array of metadata (no file content), frontend groups by studentId
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const { studentId } = req.query;
   const rows = studentId
     ? await db.all("SELECT * FROM documents WHERE student_id = ? ORDER BY sno", [studentId])
@@ -80,7 +81,7 @@ router.post("/upload", (req, res) => {
 });
 
 // GET /api/documents/:id/file — streams the actual file (for viewing/downloading)
-router.get("/:id/file", async (req, res) => {
+router.get("/:id/file", authenticate, async (req, res) => {
   const doc = await db.get("SELECT * FROM documents WHERE id = ?", [req.params.id]);
   if (!doc) return res.status(404).json({ error: "Document not found." });
   const fullPath = path.join(UPLOAD_ROOT, doc.file_path);
@@ -90,7 +91,7 @@ router.get("/:id/file", async (req, res) => {
 });
 
 // DELETE /api/documents/:id — removes both the database row and the file on disk
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, authorizeRoles("super_admin", "admin"), async (req, res) => {
   const doc = await db.get("SELECT * FROM documents WHERE id = ?", [req.params.id]);
   if (!doc) return res.status(404).json({ error: "Document not found." });
   const fullPath = path.join(UPLOAD_ROOT, doc.file_path);

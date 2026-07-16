@@ -1,11 +1,12 @@
 const express = require("express");
 const db = require("../db");
 const { rowToCamel, EMAIL_FIELDS } = require("../fieldMap");
+const { authenticate } = require("../authMiddleware");
 
 const router = express.Router();
 
 // GET /api/emails?to=someone@example.com
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const { to } = req.query;
   const rows = to
     ? await db.all("SELECT * FROM emails WHERE to_email = ? ORDER BY date DESC", [to])

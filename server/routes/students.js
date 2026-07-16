@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { rowToCamel, camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
 const { composeRegistrationEmail } = require("../emailTemplates");
+const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
 const router = express.Router();
 
@@ -22,8 +23,12 @@ async function getStudent(id) {
   return student;
 }
 
-router.get("/", async (req, res) => {
-  const rows = await db.all("SELECT * FROM students");
+router.get("/", authenticate, async (req, res) => {
+  let rows = await db.all("SELECT * FROM students");
+  if (req.user.role === "hod" && req.user.department) {
+    const deptCourseIds = new Set((await db.all("SELECT id FROM courses WHERE department = ?", [req.user.department])).map((c) => c.id));
+    rows = rows.filter((r) => deptCourseIds.has(r.course_id));
+  }
   res.json(rows.map((r) => {
     const student = rowToCamel(r, STUDENT_FIELDS);
     student.extraFields = r.extra_fields ? JSON.parse(r.extra_fields) : null;
@@ -87,7 +92,7 @@ router.post("/:id/finalize", async (req, res) => {
 });
 
 // PATCH /api/students/:id — generic edit (admin quick-edit, student self-service, etc.)
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", authenticate, async (req, res) => {
   const { id } = req.params;
   const existing = await db.get("SELECT id FROM students WHERE id = ?", [id]);
   if (!existing) return res.status(404).json({ error: "Student not found." });
@@ -97,7 +102,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 // PATCH /api/students/:id/approve
-router.patch("/:id/approve", async (req, res) => {
+router.patch("/:id/approve", authenticate, authorizeRoles("super_admin", "admin"), requireModule("admissions"), async (req, res) => {
   const { id } = req.params;
   try {
     const student = await db.get("SELECT * FROM students WHERE id = ?", [id]);
@@ -132,7 +137,7 @@ router.patch("/:id/approve", async (req, res) => {
 });
 
 // PATCH /api/students/:id/reject  { reason }
-router.patch("/:id/reject", async (req, res) => {
+router.patch("/:id/reject", authenticate, authorizeRoles("super_admin", "admin"), requireModule("admissions"), async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const existing = await db.get("SELECT id FROM students WHERE id = ?", [id]);
@@ -142,7 +147,7 @@ router.patch("/:id/reject", async (req, res) => {
 });
 
 // POST /api/students/bulk-delete  { ids: [...] }
-router.post("/bulk-delete", async (req, res) => {
+router.post("/bulk-delete", authenticate, authorizeRoles("super_admin", "admin"), requireModule("students"), async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids array required." });
   const placeholders = ids.map(() => "?").join(",");

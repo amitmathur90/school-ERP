@@ -4,6 +4,7 @@ const Razorpay = require("razorpay");
 const db = require("../db");
 const { recordPayment, uid } = require("../paymentService");
 const { getSetting, setSetting } = require("../settingsService");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ router.get("/config", async (req, res) => {
 // means the other is off, there's no separate "enable" per gateway.
 // NOTE: like the rest of this API, this endpoint doesn't itself verify the
 // caller is an admin — see the README's security notes.
-router.patch("/config", async (req, res) => {
+router.patch("/config", authenticate, authorizeRoles("super_admin", "admin"), async (req, res) => {
   const { provider } = req.body;
   if (!["none", "razorpay", "payu"].includes(provider)) {
     return res.status(400).json({ error: "provider must be 'none', 'razorpay', or 'payu'." });

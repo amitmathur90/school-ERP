@@ -1,26 +1,31 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# Dependencies
+node_modules/
+server/node_modules/
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment files — NEVER commit real secrets
+.env
+server/.env
+!.env.example
+!server/.env.example
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Build output
+dist/
+build/
+
+# Local database files (old SQLite version, if present)
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded documents — local dev only; on Render these need a persistent
+# disk or object storage (see README's Render deployment section)
+server/uploads/
+
+# Editor/OS
+.vscode/
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
 
-server/uploads/*
+# Logs
+npm-debug.log*
+*.log

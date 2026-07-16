@@ -2,10 +2,11 @@ const express = require("express");
 const db = require("../db");
 const { rowToCamel, TRANSACTION_FIELDS } = require("../fieldMap");
 const { recordPayment } = require("../paymentService");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const rows = await db.all("SELECT * FROM transactions ORDER BY date DESC");
   res.json(rows.map((r) => {
     const out = rowToCamel(r, TRANSACTION_FIELDS);
@@ -18,7 +19,7 @@ router.get("/", async (req, res) => {
 // Body: { studentId, feeAmount, additionalFees: [{label, amount}], totalAmount,
 //         paymentType, paymentMode, planTotalAmount, tenureMonths,
 //         recordedByName, recordedByRole }
-router.post("/", async (req, res) => {
+router.post("/", authenticate, authorizeRoles("super_admin", "admin", "accounts"), async (req, res) => {
   try {
     const { transaction } = await recordPayment(req.body);
     res.status(201).json(transaction);

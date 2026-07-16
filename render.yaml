@@ -1,0 +1,66 @@
+# Render Blueprint — deploys the backend (Web Service), the frontend
+# (Static Site), and a managed PostgreSQL database together.
+#
+# HOW TO USE:
+# Render deploys from a Git repository, not a zip upload. Push this whole
+# project (this file at the repo root, the `server/` folder, and your
+# frontend project folder) to a GitHub repo, then in Render:
+#   New + -> Blueprint -> connect that repo -> Render reads this file and
+#   sets up all three resources automatically.
+#
+# After the first deploy, go to each service's Environment tab and fill in
+# any variables marked "sync: false" below (Render intentionally leaves
+# secrets blank in the blueprint — you set them once in the dashboard).
+
+databases:
+  - name: law-college-erp-db
+    plan: free                 # Render's free Postgres — fine to start; upgrade if you outgrow it
+    region: oregon              # change to whichever region you deploy the services in
+
+services:
+  # ---------------- Backend (Express API) ----------------
+  - type: web
+    name: law-college-erp-api
+    runtime: node
+    plan: free                  # Render's free web service plan (spins down when idle — fine for testing, upgrade for production)
+    region: oregon
+    rootDir: server              # <-- adjust if your server folder has a different name/location in the repo
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: law-college-erp-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false             # set this to your deployed frontend's URL (see the Static Site's URL below) after both are deployed once
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: PAYU_MERCHANT_KEY
+        sync: false
+      - key: PAYU_SALT
+        sync: false
+      - key: PAYU_BASE_URL
+        value: https://test.payu.in/_payment
+
+  # ---------------- Frontend (static Vite build) ----------------
+  - type: web
+    name: law-college-erp-frontend
+    runtime: static
+    rootDir: .                   # <-- adjust if your frontend project lives in a subfolder of the repo (e.g. "frontend")
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false             # set this to https://law-college-erp-api.onrender.com/api (your backend service's URL + /api) after the backend is deployed once
+    routes:
+      # Client-side routing fallback — without this, refreshing on any
+      # non-root path 404s, since this is a single-page app.
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -38,6 +38,7 @@ const loginLimiter = rateLimit({
 app.use("/api/auth/login", loginLimiter);
 
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/admins", require("./routes/admins"));
 app.use("/api/courses", require("./routes/courses"));
 app.use("/api/teachers", require("./routes/teachers"));
 app.use("/api/students", require("./routes/students"));
@@ -50,6 +51,7 @@ app.use("/api/transactions", require("./routes/transactions"));
 app.use("/api/payments", require("./routes/payments"));
 app.use("/api/academic-details", require("./routes/academicDetails"));
 app.use("/api/documents", require("./routes/documents"));
+app.use("/api/leave", require("./routes/leave"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/emails", require("./routes/emails"));
 
@@ -87,12 +89,26 @@ process.on("uncaughtException", (err) => {
 const PORT = process.env.PORT || 4000;
 
 let server;
+const { checkAndSendFeeDueReminders } = require("./feeReminderService");
+
 db.init()
   .then(() => {
     server = app.listen(PORT, () => {
-      console.log(`\n  Law College ERP API running at ${process.env.FRONTEND_URL}:${PORT}`);
+      console.log(`\n  Law College ERP API running at http://localhost:${PORT}`);
       console.log(`  Database: PostgreSQL (${process.env.DATABASE_URL ? "via DATABASE_URL" : `${process.env.PGHOST || "localhost"}/${process.env.PGDATABASE || "law_college_erp"}`})\n`);
     });
+
+    // Fee due-date reminders: check once at startup, then once a day.
+    // Not precise cron scheduling — this app has one long-running process,
+    // so a simple interval is enough. If you run this under something that
+    // restarts the process frequently, reminders still won't be missed
+    // (the startup check covers that), just possibly re-checked more often
+    // than once a day, which is harmless since the 7-day cooloff prevents
+    // duplicate notifications either way.
+    checkAndSendFeeDueReminders().catch((e) => console.error("Initial fee reminder check failed:", e));
+    setInterval(() => {
+      checkAndSendFeeDueReminders().catch((e) => console.error("Scheduled fee reminder check failed:", e));
+    }, 24 * 60 * 60 * 1000);
   })
   .catch((e) => {
     console.error("\n  Could not start: failed to connect to / initialize PostgreSQL.");

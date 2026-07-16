@@ -1,13 +1,14 @@
 const express = require("express");
 const db = require("../db");
 const { rowToCamel, ACADEMIC_FIELDS } = require("../fieldMap");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
 function uid(p) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
 
 // GET /api/academic-details -> flat array, frontend groups by studentId
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const rows = await db.all("SELECT * FROM academic_details ORDER BY student_id, sno");
   res.json(rows.map((r) => rowToCamel(r, ACADEMIC_FIELDS)));
 });
@@ -42,7 +43,7 @@ router.post("/sync", async (req, res) => {
 });
 
 // DELETE /api/academic-details/:id — ad-hoc single-row delete (admin use)
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, authorizeRoles("super_admin", "admin"), async (req, res) => {
   await db.run("DELETE FROM academic_details WHERE id = ?", [req.params.id]);
   res.json({ ok: true });
 });

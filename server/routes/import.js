@@ -4,8 +4,10 @@ const db = require("../db");
 const { camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
 const { mapRow, STUDENT_ALIAS_MAP, FEE_ALIAS_MAP } = require("../csvImport");
 const { composeRegistrationEmail } = require("../emailTemplates");
+const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
 const router = express.Router();
+router.use(authenticate, authorizeRoles("super_admin", "admin"));
 
 function uid(p) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
 
@@ -31,7 +33,7 @@ function normalizeStatus(value, fallback) {
 // POST /api/import/students
 // Body: { rows: [ { <any CSV header>: <value>, ... }, ... ] }
 // Admin only (enforce whatever auth/role check your deployment uses at the gateway/session level).
-router.post("/students", async (req, res) => {
+router.post("/students", requireModule("admissions"), async (req, res) => {
   const { rows } = req.body;
   if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "rows array required." });
 
@@ -129,7 +131,7 @@ router.post("/students", async (req, res) => {
 // POST /api/import/fees
 // Body: { rows: [ { <any CSV header>: <value>, ... }, ... ] }
 // Matches each row to an existing student by email or roll number.
-router.post("/fees", async (req, res) => {
+router.post("/fees", requireModule("fees"), async (req, res) => {
   const { rows } = req.body;
   if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "rows array required." });
 

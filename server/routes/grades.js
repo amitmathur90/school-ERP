@@ -1,16 +1,17 @@
 const express = require("express");
 const db = require("../db");
 const { rowToCamel, GRADE_FIELDS } = require("../fieldMap");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const rows = await db.all("SELECT * FROM grades");
   res.json(rows.map((r) => rowToCamel(r, GRADE_FIELDS)));
 });
 
 // POST /api/grades  { studentId, subject, examType, semester, marks, maxMarks }
-router.post("/", async (req, res) => {
+router.post("/", authenticate, authorizeRoles("super_admin", "admin", "hod", "faculty", "exam_incharge"), async (req, res) => {
   const { studentId, subject, examType, semester, marks, maxMarks } = req.body;
   if (!studentId || !subject || marks === undefined) return res.status(400).json({ error: "studentId, subject and marks are required." });
   const id = `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -22,7 +23,7 @@ router.post("/", async (req, res) => {
   res.status(201).json(rowToCamel(row, GRADE_FIELDS));
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, authorizeRoles("super_admin", "admin", "hod", "faculty", "exam_incharge"), async (req, res) => {
   await db.run("DELETE FROM grades WHERE id = ?", [req.params.id]);
   res.json({ ok: true });
 });

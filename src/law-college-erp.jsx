@@ -5,7 +5,7 @@ import {
   Scale, LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
   Wallet, LogOut, CheckCircle, XCircle, Clock, Search, Plus,
   Trash2, ChevronRight, User, Lock, FileText,
-  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud
+  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer
 } from "lucide-react";
 
 /**
@@ -14,16 +14,41 @@ import {
  * that reads/writes over HTTP, so every device pointed at the same server
  * sees the same data.
  *
- * Change API_BASE if your server runs somewhere other than localhost:4000
- * (e.g. deployed on your college's network or a cloud host).
+ * Where this comes from, in priority order:
+ *  1. VITE_API_BASE_URL — set at build time (e.g. in Render's static site
+ *     env vars, or a local .env for `npm run build`). This is the right
+ *     way to point a deployed frontend at a deployed backend.
+ *  2. window.__ERP_API_BASE__ — set at runtime in index.html, for quick
+ *     local overrides without rebuilding.
+ *  3. http://localhost:4000/api — the local-dev default.
  */
-const API_BASE = (typeof window !== "undefined" && window.__ERP_API_BASE__) || "http://localhost:4000/api";
+const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
+  (typeof window !== "undefined" && window.__ERP_API_BASE__) ||
+  "http://localhost:4000/api";
+
+/** The current session's auth token. Kept as a module-level variable (not
+ *  React state) because api/apiFetch are plain functions called from many
+ *  places, not just inside components. Persisted to localStorage so a page
+ *  refresh doesn't sign the user out (the token's own 12h expiry is what
+ *  actually ends a session, not closing the tab). */
+let authToken = (typeof window !== "undefined" && window.localStorage.getItem("erp_token")) || null;
+function setAuthToken(token) {
+  authToken = token;
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem("erp_token", token);
+  else window.localStorage.removeItem("erp_token");
+}
+function getAuthToken() { return authToken; }
 
 async function apiFetch(path, options = {}) {
   let res;
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       ...options,
     });
   } catch (e) {
@@ -31,6 +56,9 @@ async function apiFetch(path, options = {}) {
   }
   let data = null;
   try { data = await res.json(); } catch { /* empty response body */ }
+  if (res.status === 401) {
+    setAuthToken(null); // session expired/invalid — clear it so the next action prompts a fresh login instead of looping on 401s
+  }
   if (!res.ok) {
     throw new Error((data && data.error) || `Request failed (${res.status})`);
   }
@@ -48,7 +76,11 @@ const api = {
   async upload(path, formData) {
     let res;
     try {
-      res = await fetch(`${API_BASE}${path}`, { method: "POST", body: formData });
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        body: formData,
+      });
     } catch (e) {
       throw new Error(`Could not reach the server at ${API_BASE}. Is the backend running? (npm start in /server)`);
     }
@@ -696,7 +728,7 @@ function ApplicationSummary({ student, course, printable, academicDetails, docum
                     <td>{d.documentNo || "—"}</td>
                     <td>
                       {!printable && (
-                        <a href={`${API_BASE}/documents/${d.id}/file`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--maroon)", fontWeight: 600, fontSize: 12.5 }}>
+                        <a href={`${API_BASE}/documents/${d.id}/file?token=${encodeURIComponent(getAuthToken() || "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--maroon)", fontWeight: 600, fontSize: 12.5 }}>
                           View {d.fileName}
                         </a>
                       )}
@@ -842,6 +874,83 @@ function PaymentGatewaySelector({ paymentsConfig, actions }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function FeeReminderTrigger({ actions }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
+
+  const trigger = async () => {
+    setBusy(true); setErr(""); setResult(null);
+    try {
+      const r = await actions.sendFeeReminders();
+      setResult(r.sent);
+    } catch (e) {
+      setErr(e.message || "Could not send reminders.");
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card-body" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>Fee Due Reminders</div>
+          <div style={{ fontSize: 11.5, color: "var(--slate)", marginTop: 2 }}>
+            Runs automatically once a day for anyone with a balance due within 30 days (dashboard notification + email). Use this to send right now instead of waiting.
+            {result !== null && <span style={{ color: "var(--success)", fontWeight: 600 }}> Just sent {result} reminder{result === 1 ? "" : "s"}.</span>}
+            {err && <span style={{ color: "var(--danger)", fontWeight: 600 }}> {err}</span>}
+          </div>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={trigger} disabled={busy}>
+          <Bell size={13} /> {busy ? "Sending…" : "Send Reminders Now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentReceiptModal({ transaction: t, student, course, onClose }) {
+  return (
+    <Modal title="Payment Receipt" onClose={onClose} width={520}>
+      <div className="print-area">
+        <div style={{ textAlign: "center", marginBottom: 18, paddingBottom: 16, borderBottom: "2px solid var(--ink)" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}><CollegeMark /></div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 17 }}>{COLLEGE_NAME}</div>
+          <div className="eyebrow" style={{ marginTop: 6 }}>Fee Payment Receipt</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, fontSize: 13, marginBottom: 16 }}>
+          <SummaryRow label="Receipt / Transaction ID" value={t.id} />
+          <SummaryRow label="Date" value={fmtDate(t.date)} />
+          <SummaryRow label="Student Name" value={student?.name} />
+          <SummaryRow label="Roll No." value={student?.rollNo || "—"} />
+          <SummaryRow label="Course" value={course?.name || "—"} />
+          <SummaryRow label="Payment Type" value={t.paymentType} />
+          <SummaryRow label="Payment Mode" value={t.paymentMode} />
+          <SummaryRow label="Recorded By" value={`${t.recordedByName}${t.recordedByRole ? ` (${t.recordedByRole})` : ""}`} />
+          {t.gateway && <SummaryRow label="Payment Gateway" value={t.gateway.charAt(0).toUpperCase() + t.gateway.slice(1)} />}
+          {t.gatewayPaymentId && <SummaryRow label="Gateway Payment ID" value={t.gatewayPaymentId} />}
+          {t.paymentMode === "EMI" && <SummaryRow label="Installment Amount" value={`₹${Number(t.installmentAmount || 0).toLocaleString("en-IN")}`} />}
+        </div>
+        {t.additionalFees && t.additionalFees.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Fee Breakdown</div>
+            {t.feeAmount > 0 && <SummaryRow label="Base Fee" value={`₹${Number(t.feeAmount).toLocaleString("en-IN")}`} />}
+            {t.additionalFees.map((f, i) => <SummaryRow key={i} label={f.label} value={`₹${Number(f.amount).toLocaleString("en-IN")}`} />)}
+          </div>
+        )}
+        <div style={{ borderTop: "2px solid var(--ink)", paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Amount Paid</span>
+          <span style={{ fontWeight: 700, fontSize: 22, fontFamily: "var(--font-display)", color: "var(--success)" }}>₹{Number(t.totalAmount).toLocaleString("en-IN")}</span>
+        </div>
+      </div>
+      <div className="no-print" style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+        <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} /> Print / Save PDF</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1565,7 +1674,7 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
         </div>
         <div className="card">
           <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
-            {[["student", "Student"], ["teacher", "Faculty"], ["admin", "Administrator"]].map(([k, l]) => (
+            {[["student", "Student"], ["teacher", "Staff"], ["admin", "Administrator"]].map(([k, l]) => (
               <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} style={{ flex: 1 }} onClick={() => switchTab(k)}>{l}</button>
             ))}
           </div>
@@ -1655,27 +1764,40 @@ function SectionHeader({ eyebrow, title, action }) {
 
 /* ============================== ADMIN PORTAL ============================== */
 
-function AdminPortal({ store, actions, onLogout }) {
+function AdminPortal({ user, store, actions, onLogout }) {
   const [page, setPage] = useState("overview");
   const { students, teachers, courses, notices, fees } = store;
+  const isSuperAdmin = user.role === "super_admin";
+  const perms = user.permissions || [];
+  const has = (key) => isSuperAdmin || perms.includes(key);
 
-  const nav = [
+  const allNav = [
     { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
     { key: "admissions", label: "Admissions Registry", icon: <UserPlus size={16} /> },
     { key: "students", label: "Students", icon: <GraduationCap size={16} /> },
-    { key: "teachers", label: "Faculty", icon: <Users size={16} /> },
+    { key: "teachers", label: "Faculty & Staff", icon: <Users size={16} /> },
     { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
     { key: "fees", label: "Fees", icon: <Wallet size={16} /> },
     { key: "reports", label: "Reports", icon: <FileText size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
   ];
+  const nav = allNav.filter((n) => has(n.key));
+  if (isSuperAdmin) nav.push({ key: "settings", label: "Staff Accounts", icon: <Lock size={16} /> });
+  // Nav is already filtered by permission, so a restricted Admin can never
+  // click into a page they don't have — this just covers the rare edge
+  // case where permissions changed mid-session and the current page is no
+  // longer in the (now smaller) allowed list.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    if (!nav.some((n) => n.key === page) && nav.length > 0) setPage(nav[0].key);
+  }, [nav.map((n) => n.key).join(",")]);
 
   const approvedStudents = students.filter((s) => (s.status || "").toLowerCase() === "approved");
   const pendingStudents = students.filter((s) => (s.status || "").toLowerCase() === "pending");
   const totalCollected = Object.values(fees).reduce((sum, f) => sum + (f.paid || 0), 0);
 
   return (
-    <PortalShell roleLabel="Administrator" userName="Administrator" navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+    <PortalShell roleLabel={isSuperAdmin ? "Super Admin" : "Administrator"} userName={user.name || "Administrator"} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
       {page === "overview" && (
         <>
           <SectionHeader eyebrow="Dashboard" title="Institution Overview" />
@@ -1704,10 +1826,169 @@ function AdminPortal({ store, actions, onLogout }) {
       {page === "students" && <StudentsDirectory students={approvedStudents} courses={courses} store={store} actions={actions} canImport />}
       {page === "teachers" && <FacultyDirectory teachers={teachers} students={students} actions={actions} />}
       {page === "courses" && <CoursesManager courses={courses} students={students} actions={actions} />}
-      {page === "fees" && <FeesManager students={approvedStudents} courses={courses} fees={fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} />}
+      {page === "fees" && <FeesManager students={approvedStudents} courses={courses} fees={fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "reports" && <ReportsCenter store={store} />}
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
+      {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
     </PortalShell>
+  );
+}
+
+const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "attendance", "grades", "hr", "settings"];
+const MODULE_LABELS = {
+  overview: "Overview", admissions: "Admissions Registry", students: "Students",
+  teachers: "Faculty & Staff", courses: "Courses", fees: "Fees", reports: "Reports",
+  notices: "Notices", attendance: "Attendance", grades: "Grades", hr: "HR", settings: "Staff Accounts (Super Admin only)",
+};
+
+function AdminAccountsManager({ actions }) {
+  const [admins, setAdmins] = useState(null);
+  const [err, setErr] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editingPermsFor, setEditingPermsFor] = useState(null);
+  const [f, setF] = useState({ name: "", username: "", password: "" });
+
+  const load = async () => {
+    try { setAdmins(await actions.listAdmins()); }
+    catch (e) { setErr(e.message || "Could not load admin accounts."); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const submit = async () => {
+    setErr("");
+    if (!f.name.trim() || !f.username.trim() || f.password.length < 6) {
+      setErr("Name, username, and a password of at least 6 characters are required."); return;
+    }
+    try {
+      await actions.createAdmin({ name: f.name.trim(), username: f.username.trim(), password: f.password });
+      setF({ name: "", username: "", password: "" });
+      setOpen(false);
+      load();
+    } catch (e) {
+      setErr(e.message || "Could not create this admin account.");
+    }
+  };
+
+  const toggleStatus = async (a) => {
+    await actions.updateAdmin(a.id, { status: a.status === "active" ? "inactive" : "active" });
+    load();
+  };
+
+  const remove = async (a) => {
+    if (!window.confirm(`Delete admin account "${a.name}"? This cannot be undone.`)) return;
+    try { await actions.deleteAdmin(a.id); load(); }
+    catch (e) { alert(e.message || "Could not delete this account."); }
+  };
+
+  if (admins === null) return <div className="card"><div className="card-body"><EmptyState icon={<Lock size={28} />} title="Loading…" note="" /></div></div>;
+
+  return (
+    <>
+      <SectionHeader eyebrow="Super Admin" title="Staff Accounts" action={<button className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={14} /> Add Admin</button>} />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card">
+        <table className="ledger">
+          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Permissions</th><th></th></tr></thead>
+          <tbody>
+            {admins.map((a) => (
+              <tr key={a.id}>
+                <td style={{ fontWeight: 600 }}>{a.name}</td>
+                <td>{a.username}</td>
+                <td><span className="seal" style={{ fontSize: 10.5 }}>{a.role === "super_admin" ? "Super Admin" : "Admin"}</span></td>
+                <td>
+                  {a.role === "super_admin" ? <span style={{ fontSize: 11, color: "var(--slate)" }}>—</span> : (
+                    <button className="btn btn-ghost btn-sm" onClick={() => toggleStatus(a)} style={{ color: a.status === "active" ? "var(--success)" : "var(--slate)", fontWeight: 700, fontSize: 11 }}>
+                      {a.status === "active" ? "Active" : "Inactive"}
+                    </button>
+                  )}
+                </td>
+                <td style={{ fontSize: 11.5, color: "var(--slate)" }}>
+                  {a.role === "super_admin" ? "All (unrestricted)" : a.permissions ? `${a.permissions.length} of ${ALL_MODULES.length} modules` : "All (unrestricted)"}
+                </td>
+                <td>
+                  {a.role !== "super_admin" && (
+                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingPermsFor(a)}><Lock size={13} /> Permissions</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => remove(a)}><Trash2 size={13} /></button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {open && (
+        <Modal title="Add Admin Account" onClose={() => setOpen(false)}>
+          <Field label="Full Name *" inputProps={{ value: f.name, onChange: set("name") }} />
+          <Field label="Username (login) *" inputProps={{ value: f.username, onChange: set("username") }} />
+          <Field label="Password *" inputProps={{ type: "password", value: f.password, onChange: set("password") }} />
+          <p style={{ fontSize: 11.5, color: "var(--slate)", marginTop: -6 }}>New admins start unrestricted (full access). Restrict specific modules afterward via "Permissions".</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+            <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={submit}>Create Admin</button>
+          </div>
+        </Modal>
+      )}
+
+      {editingPermsFor && (
+        <AdminPermissionsModal
+          admin={editingPermsFor}
+          actions={actions}
+          onClose={() => setEditingPermsFor(null)}
+          onSaved={() => { setEditingPermsFor(null); load(); }}
+        />
+      )}
+    </>
+  );
+}
+
+function AdminPermissionsModal({ admin, actions, onClose, onSaved }) {
+  const [unrestricted, setUnrestricted] = useState(!admin.permissions);
+  const [selected, setSelected] = useState(new Set(admin.permissions || ALL_MODULES));
+  const [err, setErr] = useState("");
+
+  const toggle = (m) => setSelected((prev) => {
+    const next = new Set(prev);
+    next.has(m) ? next.delete(m) : next.add(m);
+    return next;
+  });
+
+  const save = async () => {
+    setErr("");
+    try {
+      await actions.updateAdminPermissions(admin.id, unrestricted ? null : Array.from(selected));
+      onSaved();
+    } catch (e) {
+      setErr(e.message || "Could not save permissions.");
+    }
+  };
+
+  return (
+    <Modal title={`Permissions — ${admin.name}`} onClose={onClose}>
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <label style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, cursor: "pointer" }}>
+        <input type="checkbox" checked={unrestricted} onChange={(e) => setUnrestricted(e.target.checked)} style={{ width: "auto" }} />
+        <span style={{ fontWeight: 600, fontSize: 13.5 }}>Unrestricted (full access to everything)</span>
+      </label>
+      {!unrestricted && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {ALL_MODULES.filter((m) => m !== "settings").map((m) => (
+            <label key={m} style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13 }}>
+              <input type="checkbox" checked={selected.has(m)} onChange={() => toggle(m)} style={{ width: "auto" }} />
+              {MODULE_LABELS[m]}
+            </label>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={save}>Save Permissions</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -2234,11 +2515,29 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
   );
 }
 
-function FacultyDirectory({ teachers, students, actions }) {
+const STAFF_ROLES = [
+  { value: "faculty", label: "Faculty" },
+  { value: "hod", label: "HOD" },
+  { value: "exam_incharge", label: "Examination Incharge" },
+  { value: "accounts", label: "Accounts" },
+  { value: "hr", label: "HR" },
+];
+const roleLabel = (v) => STAFF_ROLES.find((r) => r.value === v)?.label || v;
+
+function FacultyDirectory({ teachers, students, actions, readOnly }) {
+  const blank = {
+    name: "", email: "", password: "", phone: "", gender: "Male", dob: "",
+    qualification: "", experience: "", address: "", joiningDate: "",
+    subject: "", department: "", designation: "", role: "faculty", status: "active",
+    photoData: "", photoName: "",
+  };
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", email: "", password: "", subject: "", department: "", phone: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [f, setF] = useState(blank);
   const [err, setErr] = useState("");
+  const [photoErr, setPhotoErr] = useState("");
   const [selected, setSelected] = useState(new Set());
+  const [roleFilter, setRoleFilter] = useState("All");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const toggleOne = (id) => setSelected((prev) => {
@@ -2246,41 +2545,78 @@ function FacultyDirectory({ teachers, students, actions }) {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const allVisibleSelected = teachers.length > 0 && teachers.every((t) => selected.has(t.id));
-  const toggleAll = () => setSelected(allVisibleSelected ? new Set() : new Set(teachers.map((t) => t.id)));
+  const visible = roleFilter === "All" ? teachers : teachers.filter((t) => t.role === roleFilter);
+  const allVisibleSelected = visible.length > 0 && visible.every((t) => selected.has(t.id));
+  const toggleAll = () => setSelected(allVisibleSelected ? new Set() : new Set(visible.map((t) => t.id)));
 
   const bulkDelete = () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Delete ${selected.size} selected faculty account${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${selected.size} selected staff account${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
     actions.deleteTeachers(Array.from(selected));
     setSelected(new Set());
   };
 
+  const openAdd = () => { setEditingId(null); setF(blank); setErr(""); setPhotoErr(""); setOpen(true); };
+  const openEdit = (t) => {
+    setEditingId(t.id);
+    setF({ ...blank, ...t, password: "" });
+    setErr(""); setPhotoErr(""); setOpen(true);
+  };
+
+  const handlePhoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowed = ["image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type)) { setPhotoErr("Only JPG, JPEG or PNG files are allowed."); return; }
+    if (file.size > 512 * 1024) { setPhotoErr("File must be less than 512KB."); return; }
+    setPhotoErr("");
+    const reader = new FileReader();
+    reader.onload = () => setF((prev) => ({ ...prev, photoData: reader.result, photoName: file.name }));
+    reader.readAsDataURL(file);
+  };
+
   const submit = async () => {
     setErr("");
-    if (!f.name.trim() || !f.email.trim() || !f.password || !f.subject.trim()) {
+    if (!f.name.trim() || !f.email.trim() || (!editingId && !f.password) || !f.department.trim() || !f.designation.trim() || !f.role) {
       setErr("Please complete all required fields."); return;
     }
     if (!EMAIL_RE.test(f.email.trim())) { setErr("Please enter a valid email address."); return; }
-    if (f.password.length < 6) { setErr("Password must be at least 6 characters."); return; }
+    if (!editingId && f.password.length < 6) { setErr("Password must be at least 6 characters."); return; }
     const emailLower = f.email.trim().toLowerCase();
-    const clash = teachers.some((t) => t.email.toLowerCase() === emailLower) ||
-      (students || []).some((s) => s.email.toLowerCase() === emailLower);
-    if (clash) { setErr("An account with this email already exists."); return; }
+    if (!editingId) {
+      const clash = teachers.some((t) => t.email.toLowerCase() === emailLower) ||
+        (students || []).some((s) => s.email.toLowerCase() === emailLower);
+      if (clash) { setErr("An account with this email already exists."); return; }
+    }
     try {
-      await actions.addTeacher({ ...f, name: f.name.trim(), email: emailLower });
-      setF({ name: "", email: "", password: "", subject: "", department: "", phone: "" });
+      if (editingId) {
+        const { password, ...patch } = f;
+        await actions.updateTeacher(editingId, { ...patch, name: f.name.trim(), email: emailLower });
+      } else {
+        await actions.addTeacher({ ...f, name: f.name.trim(), email: emailLower });
+      }
+      setF(blank);
       setOpen(false);
+      setEditingId(null);
     } catch (ex) {
-      setErr(ex.message || "Could not create the faculty account.");
+      setErr(ex.message || "Could not save this staff account.");
     }
   };
 
   return (
     <>
-      <SectionHeader eyebrow="Faculty" title="Teaching & Staff" action={<button className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={14} /> Add Faculty</button>} />
+      <SectionHeader
+        eyebrow="Staff" title="Faculty & Staff"
+        action={<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ width: 190 }}>
+            <option value="All">All Roles</option>
+            {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+          {!readOnly && <button className="btn btn-primary" onClick={openAdd}><Plus size={14} /> Add Staff Member</button>}
+        </div>}
+      />
 
-      {selected.size > 0 && (
+      {!readOnly && selected.size > 0 && (
         <div className="card" style={{ marginBottom: 14, background: "var(--danger-bg)", borderColor: "var(--danger)" }}>
           <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)" }}>{selected.size} selected</span>
@@ -2291,23 +2627,38 @@ function FacultyDirectory({ teachers, students, actions }) {
       )}
 
       <div className="card">
-        {teachers.length === 0 ? <div className="card-body"><EmptyState icon={<Users size={30} />} title="No faculty added" note="Add a teacher or staff account to get started." /></div> : (
+        {visible.length === 0 ? <div className="card-body"><EmptyState icon={<Users size={30} />} title="No staff found" note="Add a faculty or staff account to get started." /></div> : (
           <div style={{ overflowX: "auto" }}>
             <table className="ledger">
               <thead><tr>
-                <th style={{ width: 34 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /></th>
-                <th>Name</th><th>Subject</th><th>Department</th><th>Email</th><th>Phone</th><th></th>
+                {!readOnly && <th style={{ width: 34 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /></th>}
+                <th>Employee ID</th><th>Name</th><th>Role</th><th>Department</th><th>Designation</th>
+                <th>Email</th><th>Mobile</th><th>Status</th><th></th>
               </tr></thead>
               <tbody>
-                {teachers.map((t) => (
+                {visible.map((t) => (
                   <tr key={t.id}>
-                    <td><input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleOne(t.id)} /></td>
+                    {!readOnly && <td><input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleOne(t.id)} /></td>}
+                    <td className="num" style={{ fontSize: 12 }}>{t.employeeId || "—"}</td>
                     <td style={{ fontWeight: 600 }}>{t.name}</td>
-                    <td>{t.subject}</td>
+                    <td><span className="seal" style={{ fontSize: 10.5 }}>{roleLabel(t.role)}</span></td>
                     <td>{t.department || "—"}</td>
+                    <td>{t.designation || "—"}</td>
                     <td style={{ fontSize: 12.5 }}>{t.email}</td>
                     <td>{t.phone || "—"}</td>
-                    <td><button className="btn btn-ghost btn-sm" onClick={() => actions.removeTeacher(t.id)}><Trash2 size={13} /></button></td>
+                    <td>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: t.status === "active" ? "var(--success)" : "var(--slate)" }}>
+                        {t.status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>
+                      {!readOnly && (
+                        <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(t)}><Pencil size={13} /></button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => actions.removeTeacher(t.id)}><Trash2 size={13} /></button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2315,18 +2666,53 @@ function FacultyDirectory({ teachers, students, actions }) {
           </div>
         )}
       </div>
+
       {open && (
-        <Modal title="Add Faculty Account" onClose={() => setOpen(false)}>
+        <Modal title={editingId ? "Edit Staff Member" : "Add Staff Member"} onClose={() => setOpen(false)} width={700}>
           {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
-          <Field label="Full Name *" inputProps={{ value: f.name, onChange: set("name") }} />
-          <Field label="Email (login) *" inputProps={{ type: "email", value: f.email, onChange: set("email") }} />
-          <Field label="Password *" inputProps={{ type: "password", value: f.password, onChange: set("password") }} />
-          <Field label="Subject *" inputProps={{ value: f.subject, onChange: set("subject"), placeholder: "e.g. Constitutional Law" }} />
-          <Field label="Department" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Law" }} />
-          <Field label="Phone" inputProps={{ value: f.phone, onChange: set("phone") }} />
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+
+          <div className="eyebrow" style={{ marginBottom: 10 }}>Personal Details</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Name *" inputProps={{ value: f.name, onChange: set("name") }} />
+            <Field label="Employee ID" inputProps={{ value: editingId ? f.employeeId : "Auto-generated on save", disabled: true, style: { color: "var(--slate)" } }} />
+            <Field label="Email / Username *" inputProps={{ type: "email", value: f.email, onChange: set("email") }} />
+            <Field label="Mobile" inputProps={{ value: f.phone, onChange: set("phone") }} />
+            <Field label="Gender" as="select" selectProps={{ value: f.gender, onChange: set("gender") }}>
+              <option>Male</option><option>Female</option><option>Transgender</option>
+            </Field>
+            <Field label="Date of Birth" inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
+            <Field label="Qualification" inputProps={{ value: f.qualification, onChange: set("qualification"), placeholder: "e.g. LLM, PhD" }} />
+            <Field label="Experience" inputProps={{ value: f.experience, onChange: set("experience"), placeholder: "e.g. 8 years" }} />
+            <Field label="Joining Date" inputProps={{ type: "date", value: f.joiningDate, onChange: set("joiningDate") }} />
+          </div>
+          <Field label="Address" as="textarea" inputProps={{ value: f.address, onChange: set("address") }} />
+
+          <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Professional Details</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Department *" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Law" }} />
+            <Field label="Designation *" inputProps={{ value: f.designation, onChange: set("designation"), placeholder: "e.g. Associate Professor" }} />
+            <Field label="Role *" as="select" selectProps={{ value: f.role, onChange: set("role") }}>
+              {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </Field>
+            <Field label="Subject" inputProps={{ value: f.subject, onChange: set("subject"), placeholder: "For teaching faculty" }} />
+            {!editingId && <Field label="Password *" inputProps={{ type: "password", value: f.password, onChange: set("password") }} />}
+            <Field label="Status" as="select" selectProps={{ value: f.status, onChange: set("status") }}>
+              <option value="active">Active</option><option value="inactive">Inactive</option>
+            </Field>
+          </div>
+
+          <div style={{ marginTop: 6, marginBottom: 6 }}>
+            <label>Photo</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {f.photoData && <img src={f.photoData} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)" }} />}
+              <input type="file" accept="image/jpeg,image/jpg,image/png" onChange={handlePhoto} />
+            </div>
+            {photoErr && <div style={{ color: "var(--danger)", fontSize: 11.5, marginTop: 4 }}>{photoErr}</div>}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
             <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={submit}>Create Account</button>
+            <button className="btn btn-primary" onClick={submit}>Save</button>
           </div>
         </Modal>
       )}
@@ -2336,7 +2722,7 @@ function FacultyDirectory({ teachers, students, actions }) {
 
 function CoursesManager({ courses, students, actions }) {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Graduation" });
+  const [f, setF] = useState({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Graduation", department: "Law" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const enrolledCount = (id) => students.filter((s) => s.courseId === id && (s.status || "").toLowerCase() === "approved").length;
 
@@ -2378,6 +2764,7 @@ function CoursesManager({ courses, students, actions }) {
           <Field label="Course Group *" as="select" selectProps={{ value: f.group, onChange: set("group") }}>
             {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
           </Field>
+          <Field label="Department" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Law" }} />
           <Field label="Duration" inputProps={{ value: f.duration, onChange: set("duration"), placeholder: "e.g. 5 Years" }} />
           <Field label="Total Seats" inputProps={{ type: "number", value: f.seats, onChange: set("seats") }} />
           <Field label="Admission Fee (₹)" inputProps={{ type: "number", value: f.admissionFee, onChange: set("admissionFee") }} />
@@ -2392,7 +2779,7 @@ function CoursesManager({ courses, students, actions }) {
   );
 }
 
-function FeesManager({ students, courses, fees, actions, role, paymentsConfig }) {
+function FeesManager({ students, courses, fees, actions, role, paymentsConfig, transactions }) {
   const [editing, setEditing] = useState(null);
   const [amount, setAmount] = useState("");
   const [dueDateInput, setDueDateInput] = useState("");
@@ -2404,6 +2791,8 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig })
   const [selected, setSelected] = useState(new Set());
   const [importing, setImporting] = useState(false);
   const [viewingExtra, setViewingExtra] = useState(null);
+  const [viewingTransactionsFor, setViewingTransactionsFor] = useState(null);
+  const [viewingReceipt, setViewingReceipt] = useState(null);
   const isAdmin = role === "admin";
 
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
@@ -2445,6 +2834,7 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig })
       />
 
       {isAdmin && <PaymentGatewaySelector paymentsConfig={paymentsConfig} actions={actions} />}
+      {isAdmin && <FeeReminderTrigger actions={actions} />}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -2531,6 +2921,7 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig })
                           {f?.extraFields && Object.keys(f.extraFields).length > 0 && (
                             <button className="btn btn-ghost btn-sm" onClick={() => setViewingExtra(s.id)}><Eye size={13} /> Extra Info</button>
                           )}
+                          <button className="btn btn-ghost btn-sm" onClick={() => setViewingTransactionsFor(s.id)}><FileText size={13} /> Payments</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(s.id); setAmount(f?.paid || 0); setDueDateInput(f?.dueDate || ""); }}>Update</button>
                         </div>
                       </td>
@@ -2572,6 +2963,41 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig })
           hint="Upload a CSV with a column identifying the student (Email or Roll No.) plus fee columns like Total Fee, Paid, Due Date. Any other column is kept as additional info on that student's fee record. Rows are matched to existing students only — this doesn't create new students."
           onClose={() => setImporting(false)}
           onImport={actions.importFeesCsv}
+        />
+      )}
+
+      {viewingTransactionsFor && (() => {
+        const s = students.find((x) => x.id === viewingTransactionsFor);
+        const txns = (transactions || []).filter((t) => t.studentId === viewingTransactionsFor).sort((a, b) => new Date(b.date) - new Date(a.date));
+        return (
+          <Modal title={`Payment History — ${s?.name || ""}`} onClose={() => setViewingTransactionsFor(null)} width={680}>
+            {txns.length === 0 ? (
+              <EmptyState icon={<Wallet size={28} />} title="No payments recorded" note="This student hasn't made any payments yet." />
+            ) : (
+              <table className="ledger">
+                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
+                <tbody>{txns.map((t) => (
+                  <tr key={t.id}>
+                    <td>{fmtDate(t.date)}</td>
+                    <td className="num">₹{t.totalAmount.toLocaleString("en-IN")}</td>
+                    <td>{t.paymentType}</td>
+                    <td>{t.paymentMode}</td>
+                    <td>{t.recordedByName}</td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={() => setViewingReceipt(t)}><Eye size={13} /> View</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
+          </Modal>
+        );
+      })()}
+
+      {viewingReceipt && (
+        <PaymentReceiptModal
+          transaction={viewingReceipt}
+          student={students.find((x) => x.id === viewingReceipt.studentId)}
+          course={courses.find((c) => c.id === students.find((x) => x.id === viewingReceipt.studentId)?.courseId)}
+          onClose={() => setViewingReceipt(null)}
         />
       )}
     </>
@@ -3138,8 +3564,295 @@ function TeacherPortal({ user, store, actions, onLogout }) {
       {page === "students" && <StudentsDirectory students={approvedStudents} courses={store.courses} store={store} actions={actions} canImport={false} />}
       {page === "attendance" && <AttendanceMarking courses={store.courses} students={approvedStudents} actions={actions} teacherSubject={teacher?.subject} />}
       {page === "grades" && <GradesEntry courses={store.courses} students={approvedStudents} grades={store.grades} actions={actions} />}
-      {page === "fees" && <FeesManager students={approvedStudents} courses={store.courses} fees={store.fees} actions={actions} role="teacher" paymentsConfig={store.paymentsConfig} />}
+      {page === "fees" && <FeesManager students={approvedStudents} courses={store.courses} fees={store.fees} actions={actions} role="teacher" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "notices" && <NoticesBoard notices={store.notices} actions={actions} poster={{ id: user.id, name: user.name, role: "teacher" }} canDelete={false} />}
+    </PortalShell>
+  );
+}
+
+const LEAVE_TYPES = ["Casual Leave", "Sick Leave", "Earned Leave", "Other"];
+
+function LeaveApplicationPanel({ user, actions }) {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ leaveType: "Casual Leave", startDate: "", endDate: "", reason: "" });
+  const [err, setErr] = useState("");
+
+  const load = async () => {
+    try { setRows(await actions.listLeaveRequests(user.id)); }
+    catch (e) { setErr(e.message || "Could not load your leave requests."); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const submit = async () => {
+    setErr("");
+    if (!f.startDate || !f.endDate) { setErr("Please choose a start and end date."); return; }
+    try {
+      await actions.applyForLeave({ teacherId: user.id, ...f });
+      setF({ leaveType: "Casual Leave", startDate: "", endDate: "", reason: "" });
+      setOpen(false);
+      load();
+    } catch (e) {
+      setErr(e.message || "Could not submit this leave request.");
+    }
+  };
+
+  const statusColor = (s) => s === "approved" ? "var(--success)" : s === "rejected" ? "var(--danger)" : "var(--warn)";
+
+  return (
+    <>
+      <SectionHeader eyebrow="My Leave" title="Leave Requests" action={<button className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={14} /> Apply for Leave</button>} />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card">
+        {!rows || rows.length === 0 ? <div className="card-body"><EmptyState icon={<Clock size={28} />} title="No leave requests yet" note="Apply for leave using the button above." /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Decision Note</th></tr></thead>
+            <tbody>{rows.map((r) => (
+              <tr key={r.id}>
+                <td>{r.leaveType}</td><td>{fmtDate(r.startDate)}</td><td>{fmtDate(r.endDate)}</td>
+                <td style={{ maxWidth: 200 }}>{r.reason || "—"}</td>
+                <td><span style={{ fontWeight: 700, fontSize: 11.5, color: statusColor(r.status), textTransform: "capitalize" }}>{r.status}</span></td>
+                <td style={{ fontSize: 12, color: "var(--slate)" }}>{r.decisionNote || "—"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {open && (
+        <Modal title="Apply for Leave" onClose={() => setOpen(false)}>
+          {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          <Field label="Leave Type" as="select" selectProps={{ value: f.leaveType, onChange: set("leaveType") }}>
+            {LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="From *" inputProps={{ type: "date", value: f.startDate, onChange: set("startDate") }} />
+            <Field label="To *" inputProps={{ type: "date", value: f.endDate, onChange: set("endDate") }} />
+          </div>
+          <Field label="Reason" as="textarea" inputProps={{ value: f.reason, onChange: set("reason") }} />
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+            <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={submit}>Submit Request</button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+function LeaveApprovalPanel({ teachers, actions }) {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState("");
+  const [noteFor, setNoteFor] = useState(null);
+  const [note, setNote] = useState("");
+
+  const load = async () => {
+    try { setRows(await actions.listLeaveRequests()); }
+    catch (e) { setErr(e.message || "Could not load leave requests."); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const teacherName = (id) => teachers.find((t) => t.id === id)?.name || "—";
+  const decide = async (id, status) => {
+    try { await actions.decideLeave(id, status, note); setNoteFor(null); setNote(""); load(); }
+    catch (e) { alert(e.message || "Could not record this decision."); }
+  };
+
+  const pending = (rows || []).filter((r) => r.status === "pending");
+  const decided = (rows || []).filter((r) => r.status !== "pending");
+
+  return (
+    <>
+      <SectionHeader eyebrow="HR" title="Leave Requests" />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Pending ({pending.length})</div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        {pending.length === 0 ? <div className="card-body"><EmptyState icon={<Clock size={28} />} title="Nothing pending" note="All caught up." /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Reason</th><th></th></tr></thead>
+            <tbody>{pending.map((r) => (
+              <tr key={r.id}>
+                <td style={{ fontWeight: 600 }}>{teacherName(r.teacherId)}</td>
+                <td>{r.leaveType}</td><td>{fmtDate(r.startDate)}</td><td>{fmtDate(r.endDate)}</td>
+                <td style={{ maxWidth: 200 }}>{r.reason || "—"}</td>
+                <td>
+                  {noteFor === r.id ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={{ width: 130 }} />
+                      <button className="btn btn-success btn-sm" onClick={() => decide(r.id, "approved")}><CheckCircle size={13} /></button>
+                      <button className="btn btn-danger btn-sm" onClick={() => decide(r.id, "rejected")}><XCircle size={13} /></button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setNoteFor(r.id); setNote(""); }}>Decide</button>
+                  )}
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Decided</div>
+      <div className="card">
+        {decided.length === 0 ? <div className="card-body"><EmptyState icon={<FileText size={28} />} title="No decisions yet" note="" /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Status</th><th>Decided By</th></tr></thead>
+            <tbody>{decided.map((r) => (
+              <tr key={r.id}>
+                <td style={{ fontWeight: 600 }}>{teacherName(r.teacherId)}</td>
+                <td>{r.leaveType}</td><td>{fmtDate(r.startDate)}</td><td>{fmtDate(r.endDate)}</td>
+                <td style={{ fontWeight: 700, fontSize: 11.5, color: r.status === "approved" ? "var(--success)" : "var(--danger)", textTransform: "capitalize" }}>{r.status}</td>
+                <td style={{ fontSize: 12 }}>{r.decidedBy}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ============================== HR PORTAL ============================== */
+
+function HRPortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "records", label: "Employee Records", icon: <Users size={16} /> },
+    { key: "leave", label: "Leave Requests", icon: <Clock size={16} /> },
+    { key: "myLeave", label: "My Leave", icon: <User size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="HR" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {page === "overview" && (
+        <>
+          <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<Users size={22} />} value={store.teachers.length} label="Staff Members" />
+            <StatCard icon={<Clock size={22} />} value={store.teachers.filter((t) => t.status === "active").length} label="Active" accent="var(--success)" />
+            <StatCard icon={<Bell size={22} />} value={store.teachers.filter((t) => t.status === "inactive").length} label="Inactive" accent="var(--slate)" />
+          </div>
+          <div className="card" style={{ background: "#FBF9F4" }}>
+            <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>
+              <b style={{ color: "var(--ink)" }}>Note:</b> Payroll and staff Attendance tracking aren't built yet in this version — Employee Records and Leave Management are available now.
+            </div>
+          </div>
+        </>
+      )}
+      {page === "records" && <FacultyDirectory teachers={store.teachers} students={store.students} actions={actions} readOnly />}
+      {page === "leave" && <LeaveApprovalPanel teachers={store.teachers} actions={actions} />}
+      {page === "myLeave" && <LeaveApplicationPanel user={user} actions={actions} />}
+    </PortalShell>
+  );
+}
+
+/* ============================== ACCOUNTS PORTAL ============================== */
+
+function AccountsPortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  const approvedStudents = store.students.filter((s) => (s.status || "").toLowerCase() === "approved");
+  const totalCollected = Object.values(store.fees).reduce((sum, f) => sum + (f.paid || 0), 0);
+  const totalDue = Object.values(store.fees).reduce((sum, f) => sum + Math.max(0, (f.totalFee || 0) - (f.paid || 0)), 0);
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "fees", label: "Fees & Receipts", icon: <Wallet size={16} /> },
+    { key: "reports", label: "Payment Reports", icon: <FileText size={16} /> },
+    { key: "myLeave", label: "My Leave", icon: <User size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="Accounts" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {page === "overview" && (
+        <>
+          <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" />
+            <StatCard icon={<Wallet size={22} />} value={`₹${totalCollected.toLocaleString("en-IN")}`} label="Fees Collected" accent="var(--success)" />
+            <StatCard icon={<Clock size={22} />} value={`₹${totalDue.toLocaleString("en-IN")}`} label="Outstanding Balance" accent="var(--danger)" />
+          </div>
+        </>
+      )}
+      {page === "fees" && <FeesManager students={approvedStudents} courses={store.courses} fees={store.fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
+      {page === "reports" && <ReportsCenter store={store} />}
+      {page === "myLeave" && <LeaveApplicationPanel user={user} actions={actions} />}
+    </PortalShell>
+  );
+}
+
+/* ============================== EXAMINATION INCHARGE PORTAL ============================== */
+
+function ExamInchargePortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  const approvedStudents = store.students.filter((s) => (s.status || "").toLowerCase() === "approved");
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "grades", label: "Marks & Results", icon: <Award size={16} /> },
+    { key: "reports", label: "Reports", icon: <FileText size={16} /> },
+    { key: "myLeave", label: "My Leave", icon: <User size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="Examination Incharge" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {page === "overview" && (
+        <>
+          <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" />
+            <StatCard icon={<Award size={22} />} value={Object.values(store.grades).flat().length} label="Grade Entries Recorded" />
+          </div>
+          <div className="card" style={{ background: "#FBF9F4" }}>
+            <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>
+              <b style={{ color: "var(--ink)" }}>Note:</b> Hall Ticket generation and a distinct exam-scheduling module aren't built yet in this version — Marks entry (across all students/courses) and Reports are available now.
+            </div>
+          </div>
+        </>
+      )}
+      {page === "grades" && <GradesEntry courses={store.courses} students={approvedStudents} grades={store.grades} actions={actions} />}
+      {page === "reports" && <ReportsCenter store={store} />}
+      {page === "myLeave" && <LeaveApplicationPanel user={user} actions={actions} />}
+    </PortalShell>
+  );
+}
+
+/* ============================== HOD PORTAL ============================== */
+
+function HODPortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  // Students are already department-scoped server-side (see routes/students.js) —
+  // store.students for a HOD user only ever contains their own department's students.
+  const approvedStudents = store.students.filter((s) => (s.status || "").toLowerCase() === "approved");
+  const deptTeachers = store.teachers.filter((t) => t.department === user.department);
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "faculty", label: "Faculty", icon: <Users size={16} /> },
+    { key: "students", label: "Students", icon: <GraduationCap size={16} /> },
+    { key: "attendance", label: "Attendance", icon: <ClipboardCheck size={16} /> },
+    { key: "grades", label: "Internal Marks", icon: <Award size={16} /> },
+    { key: "myLeave", label: "My Leave", icon: <User size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="HOD" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {page === "overview" && (
+        <>
+          <SectionHeader eyebrow={`${user.department || "Department"} · Dashboard`} title={`Welcome, ${user.name}`} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label={`Students in ${user.department || "your department"}`} />
+            <StatCard icon={<Users size={22} />} value={deptTeachers.length} label="Faculty in your department" />
+          </div>
+          <p style={{ fontSize: 12, color: "var(--slate)" }}>
+            You're viewing only students enrolled in courses under the <b>{user.department || "—"}</b> department, and only faculty assigned to it — enforced by the server, not just hidden in this view.
+          </p>
+        </>
+      )}
+      {page === "faculty" && <FacultyDirectory teachers={deptTeachers} students={approvedStudents} actions={actions} readOnly />}
+      {page === "students" && <StudentsDirectory students={approvedStudents} courses={store.courses} store={store} actions={actions} canImport={false} />}
+      {page === "attendance" && <AttendanceMarking courses={store.courses} students={approvedStudents} actions={actions} />}
+      {page === "grades" && <GradesEntry courses={store.courses} students={approvedStudents} grades={store.grades} actions={actions} />}
+      {page === "myLeave" && <LeaveApplicationPanel user={user} actions={actions} />}
     </PortalShell>
   );
 }
@@ -3324,6 +4037,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const [page, setPage] = useState("overview");
   const [showResult, setShowResult] = useState(false);
   const [payingOnline, setPayingOnline] = useState(false);
+  const [viewingReceipt, setViewingReceipt] = useState(null);
   const student = store.students.find((s) => s.id === user.id);
 
   if (!student) return null;
@@ -3371,7 +4085,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const pct = attendance.length ? Math.round((attendance.filter((r) => r.status === "Present").length / attendance.length) * 100) : null;
   const fee = store.fees[student.id];
   const gradeList = store.grades[student.id] || [];
-  const myTransactions = store.transactions.filter((t) => t.studentId === student.id);
+  const myTransactions = store.transactions.filter((t) => t.studentId === student.id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const myMessages = store.messages.filter((m) => m.toStudentId === student.id);
 
   const nav = [
@@ -3526,7 +4240,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
             <div className="card-header"><h3 style={{ fontSize: 15 }}>Payment History</h3></div>
             {myTransactions.length === 0 ? <div className="card-body"><EmptyState icon={<Wallet size={28} />} title="No payments recorded" note="Your payment history will appear here." /></div> : (
               <table className="ledger">
-                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th></tr></thead>
+                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
                 <tbody>{myTransactions.map((t) => (
                   <tr key={t.id}>
                     <td>{fmtDate(t.date)}</td>
@@ -3534,12 +4248,17 @@ function StudentPortal({ user, store, actions, onLogout }) {
                     <td>{t.paymentType}</td>
                     <td>{t.paymentMode}</td>
                     <td>{t.recordedByName}</td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={() => setViewingReceipt(t)}><Eye size={13} /> View</button></td>
                   </tr>
                 ))}</tbody>
               </table>
             )}
           </div>
         </>
+      )}
+
+      {viewingReceipt && (
+        <PaymentReceiptModal transaction={viewingReceipt} student={student} course={course} onClose={() => setViewingReceipt(null)} />
       )}
 
       {payingOnline && (
@@ -3788,14 +4507,39 @@ export default function App() {
     setLoading(false);
   };
 
-  // This effect only fetches data from the server on first mount — every
-  // setState call inside loadAll() happens after an `await`, on a later
-  // tick, never synchronously during the effect's own execution. That's
-  // the standard "fetch external data on mount" pattern React's docs
-  // describe as a valid use of useEffect, so it's safe to disable the
-  // (overly cautious, for this specific shape) set-state-in-effect rule here.
+  // On mount: if a token from a previous session is stored, try to restore
+  // that session (fresh permissions in case Super Admin changed them since
+  // the token was issued) and load data. Otherwise, nothing to load yet —
+  // the app only fetches the full dataset AFTER a successful login, not
+  // before (most endpoints now require authentication, and eagerly loading
+  // everything for an anonymous visitor just looking at the login screen
+  // would be both wasteful and, since this change, mostly just 401s anyway).
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    const restore = async () => {
+      if (!getAuthToken()) { setLoading(false); return; }
+      try {
+        const me = await api.get("/auth/me");
+        setUser({ role: me.role, id: me.id, name: me.name, department: me.department || null, permissions: me.permissions || null });
+        await loadAll();
+      } catch {
+        setAuthToken(null); // stored token is invalid/expired
+        setLoading(false);
+      }
+    };
+    restore();
+  }, []);
+
+  // The admission form needs the list of courses before anyone has logged
+  // in at all (a prospective student picks a course while applying) — that
+  // one endpoint is intentionally public, so this fetches just that, rather
+  // than the full loadAll().
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    if (!user && view === "admission" && store.courses.length === 0) {
+      api.get("/courses").then((courses) => setStore((prev) => ({ ...prev, courses }))).catch(() => {});
+    }
+  }, [user, view]);
 
   // Detects the browser landing back on the app after PayU's redirect flow
   // (?payment=success or ?payment=failed on the URL) — Razorpay doesn't need
@@ -3809,7 +4553,7 @@ export default function App() {
     if (payment === "success" || payment === "failed") {
       setPaymentReturnStatus(payment);
       window.history.replaceState({}, "", window.location.pathname);
-      if (payment === "success") loadAll();
+      if (payment === "success" && getAuthToken()) loadAll();
     }
   }, []);
 
@@ -3820,9 +4564,17 @@ export default function App() {
 
   const login = async (role, id, password) => {
     const res = await api.post("/auth/login", { role, id, password }); // throws with server error message on failure
-    const name = res.name || (role === "student" ? store.students.find((s) => s.id === res.id)?.name : store.teachers.find((t) => t.id === res.id)?.name) || "";
-    setUser({ role: res.role, id: res.id, name });
+    setAuthToken(res.token);
+    setUser({ role: res.role, id: res.id, name: res.name, department: res.department || null, permissions: res.permissions || null });
+    await loadAll();
     return res;
+  };
+
+  const logout = () => {
+    setAuthToken(null);
+    setUser(null);
+    setStore({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {} });
+    setView("login");
   };
 
   const actions = useMemo(() => ({
@@ -3842,6 +4594,10 @@ export default function App() {
     addTeacher: async (t) => {
       const created = await api.post("/teachers", t);
       setStore((prev) => ({ ...prev, teachers: [...prev.teachers, created] }));
+    },
+    updateTeacher: async (id, patch) => {
+      const updated = await api.patch(`/teachers/${id}`, patch);
+      setStore((prev) => ({ ...prev, teachers: prev.teachers.map((t) => t.id === id ? updated : t) }));
     },
     removeTeacher: async (id) => {
       await api.del(`/teachers/${id}`);
@@ -4014,6 +4770,26 @@ export default function App() {
       const paymentsConfig = await api.get("/payments/config").catch(() => store.paymentsConfig);
       setStore((prev) => ({ ...prev, paymentsConfig }));
     },
+    sendFeeReminders: async () => {
+      const result = await api.post("/fees/send-due-reminders");
+      // Refresh messages/emails so admin sees the newly-sent reminders immediately.
+      const [messages, emails] = await Promise.all([api.get("/messages"), api.get("/emails")]);
+      setStore((prev) => ({ ...prev, messages, emails }));
+      return result;
+    },
+
+    // ---- Leave requests ----
+    listLeaveRequests: async (teacherId) => api.get(teacherId ? `/leave?teacherId=${encodeURIComponent(teacherId)}` : "/leave"),
+    applyForLeave: async (payload) => api.post("/leave", payload),
+    decideLeave: async (id, status, decisionNote) => api.patch(`/leave/${id}`, { status, decisionNote }),
+
+    // ---- Super Admin: manage Admin accounts ----
+    listAdmins: async () => api.get("/admins"),
+    createAdmin: async (payload) => api.post("/admins", payload),
+    updateAdmin: async (id, patch) => api.patch(`/admins/${id}`, patch),
+    updateAdminPermissions: async (id, permissions) => api.patch(`/admins/${id}/permissions`, { permissions }),
+    resetAdminPassword: async (id, newPassword) => api.post(`/admins/${id}/reset-password`, { newPassword }),
+    deleteAdmin: async (id) => api.del(`/admins/${id}`),
 
     // ---- Academic details (admission wizard step 6) ----
     saveAcademicDetails: async (studentId, rows) => {
@@ -4177,12 +4953,20 @@ export default function App() {
         ) : (
           <LoginScreen onLogin={login} onGoToAdmission={() => setView("admission")} prefillEmail={justApplied?.email} />
         )
-      ) : user.role === "admin" ? (
-        <AdminPortal store={store} actions={actions} onLogout={() => setUser(null)} />
-      ) : user.role === "teacher" ? (
-        <TeacherPortal user={user} store={store} actions={actions} onLogout={() => setUser(null)} />
+      ) : (user.role === "admin" || user.role === "super_admin") ? (
+        <AdminPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "hr" ? (
+        <HRPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "accounts" ? (
+        <AccountsPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "exam_incharge" ? (
+        <ExamInchargePortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "hod" ? (
+        <HODPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "faculty" ? (
+        <TeacherPortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : (
-        <StudentPortal user={user} store={store} actions={actions} onLogout={() => setUser(null)} />
+        <StudentPortal user={user} store={store} actions={actions} onLogout={logout} />
       )}
     </div>
   );

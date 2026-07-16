@@ -1,16 +1,17 @@
 const express = require("express");
 const db = require("../db");
+const { authenticate, authorizeRoles } = require("../authMiddleware");
 
 const router = express.Router();
 
 // GET /api/attendance -> flat array [{ studentId, date, subject, status }]
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const rows = await db.all("SELECT student_id, date, subject, status FROM attendance");
   res.json(rows.map((r) => ({ studentId: r.student_id, date: r.date, subject: r.subject, status: r.status })));
 });
 
 // POST /api/attendance/mark  { courseId, date, subject, marks: { [studentId]: 'Present'|'Absent' } }
-router.post("/mark", async (req, res) => {
+router.post("/mark", authenticate, authorizeRoles("super_admin", "admin", "hod", "faculty"), async (req, res) => {
   const { date, subject, marks } = req.body;
   if (!date || !marks) return res.status(400).json({ error: "date and marks are required." });
 

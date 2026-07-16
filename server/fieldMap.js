@@ -95,8 +95,12 @@ const COURSE_FIELDS = [
 ];
 
 const TEACHER_FIELDS = [
-  ["id", "id"], ["name", "name"], ["email", "email"],
+  ["id", "id"], ["employeeId", "employee_id"], ["name", "name"], ["email", "email"],
   ["subject", "subject"], ["department", "department"], ["phone", "phone"],
+  ["gender", "gender"], ["dob", "dob"], ["qualification", "qualification"],
+  ["experience", "experience"], ["address", "address"], ["joiningDate", "joining_date"],
+  ["designation", "designation"], ["role", "role"], ["status", "status"],
+  ["photoData", "photo_data"], ["photoName", "photo_name"],
 ];
 
 const NOTICE_FIELDS = [

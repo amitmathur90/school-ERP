@@ -39,11 +39,15 @@ function composeFeeReceiptEmail(student, txn) {
 
 We have received your fee payment. Details are below:
 
+Receipt / Transaction ID: ${txn.id}
 Amount Received: ₹${Number(txn.total_amount).toLocaleString("en-IN")}
 Payment Type: ${txn.payment_type}
 Payment Mode: ${txn.payment_mode}${txn.payment_mode === "EMI" ? `\nInstallment Amount: ₹${Number(txn.installment_amount || 0).toLocaleString("en-IN")}` : ""}
 Date: ${fmtDate(txn.date)}
 Recorded By: ${txn.recorded_by_name}
+${txn.gateway ? `Payment Gateway: ${txn.gateway.charAt(0).toUpperCase() + txn.gateway.slice(1)}\nGateway Payment ID: ${txn.gateway_payment_id}` : ""}
+
+Please keep this Transaction ID for your records — you can also view and print this receipt anytime from your Fees & Payments page.
 
 Thank you for your prompt payment.
 
@@ -51,4 +55,24 @@ ${EMAIL_FOOTER}`,
   };
 }
 
-module.exports = { composeRegistrationEmail, composeFeeReceiptEmail };
+function composeFeeDueReminderEmail(student, fee) {
+  const balance = Number(fee.total_fee) - Number(fee.paid);
+  return {
+    subject: `Fee Due Reminder — ${COLLEGE_NAME}`,
+    body:
+`Dear ${student.name},
+
+This is a reminder that a fee payment is due soon on your account.
+
+Amount Due: ₹${balance.toLocaleString("en-IN")}
+Due Date: ${fmtDate(fee.due_date)}
+Amount Paid So Far: ₹${Number(fee.paid).toLocaleString("en-IN")}
+Total Fee: ₹${Number(fee.total_fee).toLocaleString("en-IN")}
+
+Please complete your payment before the due date to avoid any inconvenience. You can pay online from your Fees & Payments page, or visit the accounts office.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
+module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail };
