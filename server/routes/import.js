@@ -82,7 +82,11 @@ router.post("/students", requireModule("admissions"), async (req, res) => {
       } else {
         const id = uid("s");
         const status = normalizeStatus(mapped.status, "approved");
-        const plainPassword = mapped.password || Math.random().toString(36).slice(2, 10);
+        // No explicit password column? Default to the student's own mobile
+        // number — easy for them to remember and for the college to
+        // communicate in bulk, without printing a random string per student.
+        // Falls back to a random password only if no phone number was given either.
+        const plainPassword = mapped.password || mapped.phone || mapped.mobileNo || mapped.whatsapp || mapped.emergencyMobile || Math.random().toString(36).slice(2, 10);
         const hash = await bcrypt.hash(String(plainPassword), 10);
         const course = mapped.courseId ? courses.find((c) => c.id === mapped.courseId) : null;
 

@@ -3275,8 +3275,9 @@ function CsvImportModal({ title, hint, onClose, onImport }) {
                 New Student Logins — save these now, they won't be shown again
               </div>
               <p style={{ fontSize: 12, color: "var(--slate)", marginBottom: 8, lineHeight: 1.5 }}>
-                These students didn't have a password column in the CSV, so one was generated automatically.
-                Share these credentials with each student — they can change their password afterward from Edit Profile.
+                These students didn't have a password column in the CSV, so their password defaults to their own
+                mobile number (or a random one if no mobile number was given either). Share these credentials with
+                each student — they can change their password afterward from Edit Profile.
               </p>
               <div className="card" style={{ maxHeight: 220, overflowY: "auto" }}>
                 <table className="ledger">
