@@ -2492,6 +2492,9 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
   const [resultFor, setResultFor] = useState(null);
   const [importing, setImporting] = useState(false);
   const [selected, setSelected] = useState(new Set());
+  const [resetting, setResetting] = useState(null); // student being reset (confirm step)
+  const [resetResult, setResetResult] = useState(null); // { name, email, tempPassword } once done
+  const [resetErr, setResetErr] = useState("");
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
   const filtered = students.filter((s) => (s.name + s.rollNo).toLowerCase().includes(q.toLowerCase()));
   const resultStudent = resultFor ? students.find((s) => s.id === resultFor) : null;
@@ -2510,6 +2513,17 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
     if (!window.confirm(`Delete ${selected.size} selected student${selected.size > 1 ? "s" : ""}? This removes their account and all admission data, and cannot be undone.`)) return;
     actions.deleteStudents(Array.from(selected));
     setSelected(new Set());
+  };
+
+  const confirmReset = async () => {
+    setResetErr("");
+    try {
+      const res = await actions.resetStudentPassword(resetting.id);
+      setResetResult({ name: resetting.name, email: res.email, tempPassword: res.tempPassword });
+      setResetting(null);
+    } catch (e) {
+      setResetErr(e.message || "Could not reset password. Please try again.");
+    }
   };
 
   return (
@@ -2553,7 +2567,12 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
                       <td>{courseName(s.courseId)}</td>
                       <td>{pct === null ? "—" : `${pct}%`}</td>
                       <td style={{ fontSize: 12.5 }}>{s.email}</td>
-                      <td><button className="btn btn-ghost btn-sm" onClick={() => setResultFor(s.id)}><Eye size={13} /> View Result</button></td>
+                      <td>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setResultFor(s.id)}><Eye size={13} /> View Result</button>
+                          {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => { setResetErr(""); setResetting(s); }}><Lock size={13} /> Reset Password</button>}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -2567,6 +2586,34 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
           <ModalErrorBoundary>
             <ResultCard student={resultStudent} course={courses.find((c) => c.id === resultStudent.courseId)} grades={store.grades[resultStudent.id] || []} />
           </ModalErrorBoundary>
+        </Modal>
+      )}
+      {resetting && (
+        <Modal title="Reset Student Password" onClose={() => setResetting(null)}>
+          {resetErr && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{resetErr}</div>}
+          <p style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+            Generate a new temporary password for <b>{resetting.name}</b>? Their current password will stop working
+            immediately, and the new one will be emailed to <b>{resetting.email}</b>.
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-ghost" onClick={() => setResetting(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={confirmReset}><Lock size={14} /> Generate & Email Password</button>
+          </div>
+        </Modal>
+      )}
+      {resetResult && (
+        <Modal title="Password Reset" onClose={() => setResetResult(null)}>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+            A new temporary password for <b>{resetResult.name}</b> has been emailed to <b>{resetResult.email}</b>.
+            It's shown below too, in case the email doesn't arrive right away — share it with the student directly if needed.
+          </p>
+          <div className="card" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 700 }}>{resetResult.tempPassword}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigator.clipboard?.writeText(resetResult.tempPassword)}>Copy</button>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={() => setResetResult(null)}>Done</button>
+          </div>
         </Modal>
       )}
       {isAdmin && importing && (
@@ -4700,6 +4747,7 @@ export default function App() {
       const student = await api.patch(`/students/${studentId}/reject`, { reason });
       setStore((prev) => ({ ...prev, students: prev.students.map((s) => s.id === studentId ? student : s) }));
     },
+    resetStudentPassword: async (studentId) => api.patch(`/students/${studentId}/reset-password`),
     addTeacher: async (t) => {
       const created = await api.post("/teachers", t);
       setStore((prev) => ({ ...prev, teachers: [...prev.teachers, created] }));

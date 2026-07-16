@@ -9,10 +9,9 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-// NOTE: this only composes and stores email text in the `emails` table — it
-// does not actually send email. Wire this to a real provider (SendGrid,
-// Resend, SMTP, etc.) in sendRegistrationEmail/sendFeeReceiptEmail below if
-// you want real delivery.
+// Each compose* function below just builds the subject/body — every caller
+// also inserts a row into the `emails` table (an in-app, durable log) and
+// passes the same subject/body to mailer.js's sendMail() for real delivery.
 function composeRegistrationEmail(student, plainPassword) {
   return {
     subject: `Registration Successful — ${COLLEGE_NAME}`,
@@ -75,4 +74,23 @@ ${EMAIL_FOOTER}`,
   };
 }
 
-module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail };
+function composeTempPasswordEmail(student, tempPassword) {
+  return {
+    subject: `Your Password Has Been Reset — ${COLLEGE_NAME}`,
+    body:
+`Dear ${student.name},
+
+An administrator has reset your student portal password. Your new temporary login details are below:
+
+Username: ${student.email}
+Temporary Password: ${tempPassword}
+
+Please sign in with this temporary password and change it right away from Edit Profile > Change Password.
+
+If you didn't request this change, please contact the accounts/admissions office immediately.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
+module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail };

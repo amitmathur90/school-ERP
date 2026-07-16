@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { rowToCamel, camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
-const { composeRegistrationEmail } = require("../emailTemplates");
+const { composeRegistrationEmail, composeTempPasswordEmail } = require("../emailTemplates");
 const { sendMail } = require("../mailer");
 const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
@@ -146,6 +146,28 @@ router.patch("/:id/reject", authenticate, authorizeRoles("super_admin", "admin")
   if (!existing) return res.status(404).json({ error: "Student not found." });
   await db.run("UPDATE students SET status = 'rejected', reject_reason = ? WHERE id = ?", [reason || "", id]);
   res.json(await getStudent(id));
+});
+
+// PATCH /api/students/:id/reset-password — admin generates a new temporary
+// password for a student (e.g. they've forgotten it / lost email access
+// during signup) and emails it to their registered address.
+router.patch("/:id/reset-password", authenticate, authorizeRoles("super_admin", "admin"), requireModule("students"), async (req, res) => {
+  const { id } = req.params;
+  const student = await getStudent(id);
+  if (!student) return res.status(404).json({ error: "Student not found." });
+
+  const tempPassword = Math.random().toString(36).slice(2, 10);
+  const hash = await bcrypt.hash(tempPassword, 10);
+  await db.run("UPDATE students SET password_hash = ? WHERE id = ?", [hash, id]);
+
+  const { subject, body } = composeTempPasswordEmail(student, tempPassword);
+  await db.run(
+    "INSERT INTO emails (id, to_email, subject, body, date) VALUES (?, ?, ?, ?, ?)",
+    [uid("mail"), student.email, subject, body, new Date().toISOString()]
+  );
+  sendMail({ to: student.email, subject, text: body });
+
+  res.json({ ok: true, email: student.email, tempPassword });
 });
 
 // POST /api/students/bulk-delete  { ids: [...] }
