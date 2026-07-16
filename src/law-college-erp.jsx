@@ -378,6 +378,14 @@ const GlobalStyles = () => (
 
     .erp-hamburger { display: none; }
     .erp-backdrop { display: none; }
+    @media (min-width: 861px) {
+      /* A sticky sidebar with a hardcoded 100vh height can drift out of sync
+         with the real viewport at non-100% browser zoom (subpixel rounding
+         between the two independently-computed values), making it scroll
+         instead of staying pinned. Letting it stretch to match its flex
+         sibling's actual rendered height instead sidesteps vh entirely. */
+      .erp-sidebar { height: auto !important; align-self: stretch; }
+    }
     @media (max-width: 860px) {
       .erp-hamburger {
         display: flex; align-items: center; justify-content: center;
