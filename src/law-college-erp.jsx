@@ -999,6 +999,18 @@ function PayOnlineModal({ student, fee, actions, onClose }) {
   const [err, setErr] = useState("");
   const [paying, setPaying] = useState(false);
 
+  // EMIs are always equal installments — keep the amount in sync with the
+  // chosen tenure (new plan) or the existing plan's fixed installment,
+  // rather than letting it drift from what the backend will actually record.
+  useEffect(() => {
+    if (hasPlan) { setAmount(fee.plan.installmentAmount); return; }
+    if (mode === "EMI") setAmount(Math.round(balance / (Number(tenure) || 1)));
+    else setAmount(balance);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, tenure, hasPlan, balance]);
+
+  const emiAmountLocked = mode === "EMI";
+
   const pay = async () => {
     setErr("");
     const amt = Number(amount);
@@ -1035,10 +1047,15 @@ function PayOnlineModal({ student, fee, actions, onClose }) {
         </div>
       )}
       {mode === "EMI" && !hasPlan && (
-        <Field label="Number of Installments" inputProps={{ type: "number", min: 2, max: 24, value: tenure, onChange: (e) => setTenure(e.target.value) }} />
+        <>
+          <Field label="Number of Installments" inputProps={{ type: "number", min: 2, max: 24, value: tenure, onChange: (e) => setTenure(e.target.value) }} />
+          <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -6, marginBottom: 14 }}>
+            {tenure > 0 && `${tenure} equal installments of ₹${Math.round(balance / tenure).toLocaleString("en-IN")} each.`}
+          </p>
+        </>
       )}
       {hasPlan && <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -6, marginBottom: 14 }}>You're on an EMI plan — this pays your next installment.</p>}
-      <Field label="Amount to Pay (₹)" inputProps={{ type: "number", value: amount, onChange: (e) => setAmount(e.target.value), max: balance }} />
+      <Field label="Amount to Pay (₹)" inputProps={{ type: "number", value: amount, onChange: (e) => setAmount(e.target.value), max: balance, disabled: emiAmountLocked, readOnly: emiAmountLocked }} />
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
         <button className="btn btn-ghost" onClick={onClose} disabled={paying}>Cancel</button>
         <button className="btn btn-primary" onClick={pay} disabled={paying || balance <= 0}>
