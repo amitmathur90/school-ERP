@@ -125,7 +125,10 @@ CREATE TABLE IF NOT EXISTS admins (
   id            TEXT PRIMARY KEY,
   username      TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  name          TEXT NOT NULL
+  name          TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'admin',
+  status        TEXT NOT NULL DEFAULT 'active',
+  permissions   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS courses (
@@ -392,6 +395,16 @@ async function init() {
   await ensureColumn("teachers", "status", "TEXT NOT NULL DEFAULT 'active'");
   await ensureColumn("teachers", "photo_data", "TEXT");
   await ensureColumn("teachers", "photo_name", "TEXT");
+  await ensureColumn("admins", "role", "TEXT NOT NULL DEFAULT 'admin'");
+  await ensureColumn("admins", "status", "TEXT NOT NULL DEFAULT 'active'");
+  await ensureColumn("admins", "permissions", "TEXT");
+
+  // The very first admin account (seeded pre-migration, username 'admin')
+  // predates the role column and got backfilled to 'admin' by the ALTER
+  // TABLE default above — promote it back to the unrestricted top of the
+  // hierarchy it was always meant to be. Idempotent: once promoted, this
+  // WHERE no longer matches it on later startups.
+  await db.run("UPDATE admins SET role = 'super_admin' WHERE username = 'admin' AND role = 'admin'");
 
   // Backfill employee IDs for any teachers created before this field existed.
   const missingEmpId = await db.all("SELECT id FROM teachers WHERE employee_id IS NULL ORDER BY id");
@@ -441,7 +454,7 @@ async function init() {
   if (Number(adminCount) === 0) {
     const hash = await bcrypt.hash("admin123", 10);
     await db.run(
-      `INSERT INTO admins (id, username, password_hash, name) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO admins (id, username, password_hash, name, role, status) VALUES (?, ?, ?, ?, 'super_admin', 'active')`,
       ["admin-1", "admin", hash, "Administrator"]
     );
     console.log("Seeded default administrator account (username: admin / password: admin123 — change this after first login).");
