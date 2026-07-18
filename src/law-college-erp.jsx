@@ -197,27 +197,20 @@ function isInMonthString(dateStr, monthStr) {
   return dateStr.slice(0, 7) === monthStr;
 }
 
-/** Best-effort Hindi transliteration via the Claude API (falls back to blank on any failure,
- *  the field always stays editable so the applicant can type/correct it manually). */
+/** Best-effort Hindi transliteration via Google's public Input Tools API (free, no key,
+ *  falls back to blank on any failure — the field always stays editable so the applicant
+ *  can type/correct it manually). */
 async function transliterateToHindi(name) {
   const text = (name || "").trim();
   if (!text) return "";
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 60,
-        messages: [{
-          role: "user",
-          content: `Transliterate this Indian personal name into Hindi Devanagari script. Reply with ONLY the Devanagari text, nothing else — no quotes, no explanation.\n\nName: ${text}`,
-        }],
-      }),
-    });
+    const res = await fetch(
+      `https://inputtools.google.com/request?text=${encodeURIComponent(text)}&itc=hi-t-i0-und&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8`
+    );
     const data = await res.json();
-    const block = (data.content || []).find((c) => c.type === "text");
-    return block ? block.text.trim().replace(/^["']|["']$/g, "") : "";
+    if (data[0] !== "SUCCESS") return "";
+    const suggestion = data[1]?.[0]?.[1]?.[0];
+    return suggestion || "";
   } catch {
     return "";
   }
