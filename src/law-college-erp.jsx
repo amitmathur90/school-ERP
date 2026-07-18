@@ -531,38 +531,44 @@ function Modal({ title, onClose, children, width }) {
   );
 }
 
-function Field({ label, ...props }) {
+function Field({ label, error, ...props }) {
+  const errStyle = error ? { borderColor: "var(--danger)", boxShadow: "0 0 0 1px var(--danger)" } : {};
   return (
     <div style={{ marginBottom: 14 }}>
       <label>{label}</label>
       {props.as === "select" ? (
-        <select {...props.selectProps}>{props.children}</select>
+        <select {...props.selectProps} style={{ ...(props.selectProps?.style || {}), ...errStyle }}>{props.children}</select>
       ) : props.as === "textarea" ? (
-        <textarea rows={3} {...props.inputProps} />
+        <textarea rows={3} {...props.inputProps} style={{ ...(props.inputProps?.style || {}), ...errStyle }} />
       ) : (
-        <input {...props.inputProps} />
+        <input {...props.inputProps} style={{ ...(props.inputProps?.style || {}), ...errStyle }} />
       )}
+      {error && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
 
-function Segmented({ options, value, onChange }) {
+function Segmented({ options, value, onChange, error }) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {options.map((o) => (
-        <button
-          type="button"
-          key={o}
-          className={`btn btn-sm ${value === o ? "btn-primary" : "btn-ghost"}`}
-          onClick={() => onChange(o)}
-        >{o}</button>
-      ))}
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: error ? 4 : 0, border: error ? "1px solid var(--danger)" : "none", borderRadius: 6 }}>
+        {options.map((o) => (
+          <button
+            type="button"
+            key={o}
+            className={`btn btn-sm ${value === o ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => onChange(o)}
+          >{o}</button>
+        ))}
+      </div>
+      {error && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
 
-function HiField({ label, required, value, onChange, hiValue, onHiChange, placeholder }) {
+function HiField({ label, required, value, onChange, hiValue, onHiChange, placeholder, error }) {
   const [loading, setLoading] = useState(false);
+  const errStyle = error ? { borderColor: "var(--danger)", boxShadow: "0 0 0 1px var(--danger)" } : {};
   const handleBlur = async () => {
     if (!value || hiValue) return;
     setLoading(true);
@@ -573,7 +579,7 @@ function HiField({ label, required, value, onChange, hiValue, onHiChange, placeh
   return (
     <div style={{ marginBottom: 14 }}>
       <label>{label}{required ? " *" : ""}</label>
-      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onBlur={handleBlur} />
+      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onBlur={handleBlur} style={errStyle} />
       <div style={{ position: "relative", marginTop: 6 }}>
         <input
           value={hiValue}
@@ -582,6 +588,7 @@ function HiField({ label, required, value, onChange, hiValue, onHiChange, placeh
           style={{ background: "#FBF9F4", fontStyle: hiValue ? "normal" : "italic", color: "var(--slate)" }}
         />
       </div>
+      {error && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
@@ -594,7 +601,7 @@ function FileUploadField({ label, hint, value, fileName, onChange, error }) {
       <div
         onClick={() => inputRef.current && inputRef.current.click()}
         style={{
-          border: "1.5px dashed var(--border)", borderRadius: 6, padding: "14px",
+          border: error ? "1.5px dashed var(--danger)" : "1.5px dashed var(--border)", borderRadius: 6, padding: "14px",
           display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: "#FBF9F4",
         }}
       >
@@ -1095,12 +1102,24 @@ function StepIndicator({ step, labels }) {
   );
 }
 
-const STEP_LABELS = ["Basic Info", "Personal Details", "Address", "Family Details", "Education & Course", "Academic Details", "Documents"];
+const STEP_LABELS = ["Basic & Personal Details", "Address", "Family Details", "Education & Course", "Academic Details & Documents"];
 const DOCUMENT_TYPES = [
   "10th Marksheet", "12th Marksheet", "Graduation Marksheet", "Graduation Certificate",
   "Transfer Certificate", "Migration Certificate", "Character Certificate",
   "Aadhar Card", "Category Certificate", "Income Certificate", "Photo", "Signature", "Other",
 ];
+// Academic-record "Name" is a dropdown (not free text) so it can be matched reliably
+// against an uploaded document's type — every academic row must have a corresponding
+// uploaded document before the student can proceed.
+const ACADEMIC_NAME_OPTIONS = ["10th", "12th", "Graduation", "Post Graduation", "Diploma", "Other"];
+const ACADEMIC_TO_DOCUMENT_TYPES = {
+  "10th": ["10th Marksheet"],
+  "12th": ["12th Marksheet"],
+  "Graduation": ["Graduation Marksheet", "Graduation Certificate"],
+  "Post Graduation": ["Graduation Marksheet", "Graduation Certificate"],
+  "Diploma": ["Other"],
+  "Other": ["Other"],
+};
 
 function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic, resumeDocuments, resumeFeePaid, paymentsConfig, onSaveStep, onFinalSubmit, onSaveAcademic, onUploadDocument, onDeleteDocument, onPayNow, onExit }) {
   const blank = {
@@ -1120,11 +1139,12 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     lateralEntry: "No", courseGroup: "Graduation", courseId: "", amount: "", medium: "English", remarks: "",
   };
   const [f, setF] = useState({ ...blank, ...(resumeStudent || {}), confirm: resumeStudent?.password || "" });
-  const [step, setStep] = useState(resumeStudent?.savedUpTo ? Math.min(7, resumeStudent.savedUpTo + 1) : 1);
+  const [step, setStep] = useState(resumeStudent?.savedUpTo ? Math.min(5, resumeStudent.savedUpTo + 1) : 1);
   const [draftId, setDraftId] = useState(resumeStudent?.id || null);
   const [savedUpTo, setSavedUpTo] = useState(resumeStudent?.savedUpTo || 0);
   const [dirty, setDirty] = useState(false);
   const [err, setErr] = useState("");
+  const [navErr, setNavErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [fileErr, setFileErr] = useState({ photo: "", signature: "" });
@@ -1190,8 +1210,16 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const [paidNow, setPaidNow] = useState(!!resumeFeePaid);
   const [paying, setPaying] = useState(false);
   const [payErr, setPayErr] = useState("");
-  const [declAccepted, setDeclAccepted] = useState(false);
-  const [declTruth, setDeclTruth] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+
+  const missingAcademicDocuments = () => {
+    const complete = academicRows.filter((r) => r.name && r.board.trim() && r.passingYear.trim());
+    const uploaded = documentRows.filter((d) => d.fileName);
+    return complete.filter((r) => {
+      const allowed = ACADEMIC_TO_DOCUMENT_TYPES[r.name] || [];
+      return !uploaded.some((d) => allowed.includes(d.documentType));
+    });
+  };
 
   const payAdmissionFee = async () => {
     setPayErr(""); setPaying(true);
@@ -1216,9 +1244,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (existingEmails.includes(f.email.trim().toLowerCase())) return "An account with this email already exists. Please sign in instead.";
       if (f.password.length < 6) return "Password must be at least 6 characters.";
       if (f.password !== f.confirm) return "Passwords do not match.";
-      return "";
-    }
-    if (s === 2) {
       if (!f.dob) return "Please enter your date of birth.";
       const d = new Date(f.dob);
       if (isNaN(d.getTime()) || d > new Date()) return "Please enter a valid date of birth.";
@@ -1227,7 +1252,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (fileErr.photo || fileErr.signature) return "Please fix the file upload errors before continuing.";
       return "";
     }
-    if (s === 3) {
+    if (s === 2) {
       if (!f.permanentAddress.trim() || !f.contactNo.trim() || !f.mobileNo.trim() || !f.country.trim() || !f.state || !f.city.trim() || !f.pinCode.trim() || !f.stateDomicile)
         return "Please complete all required address fields.";
       if (!PHONE_RE.test(f.contactNo.trim())) return "Contact number must be exactly 10 digits.";
@@ -1240,7 +1265,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       }
       return "";
     }
-    if (s === 4) {
+    if (s === 3) {
       if (!f.fatherFirstMiddle.trim() || !f.fatherLastName.trim() || !f.fatherPhone.trim() || !f.fatherOccupation || !f.fatherOrg.trim())
         return "Please complete all required father's details.";
       if (!PHONE_RE.test(f.fatherPhone.trim())) return "Father's phone number must be exactly 10 digits.";
@@ -1249,21 +1274,20 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (!PHONE_RE.test(f.motherPhone.trim())) return "Mother's phone number must be exactly 10 digits.";
       return "";
     }
-    if (s === 5) {
+    if (s === 4) {
       if (!f.lastExamYear.trim() || !f.lastExamPercentage.trim() || !f.resultStatus || !f.courseGroup || !f.courseId || !f.medium)
         return "Please complete all required fields and select a course.";
       if (!/^\d{4}$/.test(f.lastExamYear.trim())) return "Please enter a valid 4-digit passing year.";
       return "";
     }
-    if (s === 6) {
-      const complete = academicRows.filter((r) => r.name.trim() && r.board.trim() && r.passingYear.trim());
+    if (s === 5) {
+      const complete = academicRows.filter((r) => r.name && r.board.trim() && r.passingYear.trim());
       if (complete.length === 0) return "Add at least one academic record with Name, Board/University, and Passing Year filled in.";
-      return "";
-    }
-    if (s === 7) {
       if (documentRows.some((r) => r.uploading)) return "Please wait for the current upload to finish.";
       if (documentRows.some((r) => r.docErr)) return "Please fix the upload error before continuing.";
-      if (!declAccepted || !declTruth) return "Please accept both declarations below before continuing.";
+      const missing = missingAcademicDocuments();
+      if (missing.length > 0) return `Please upload a matching document for: ${missing.map((r) => r.name).join(", ")}.`;
+      if (!agreeTerms) return "Please accept the terms and conditions before continuing.";
       return "";
     }
     return "";
@@ -1288,18 +1312,18 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     if (e) { setErr(e); setJustSaved(false); return false; }
     setErr(""); setSaving(true);
     try {
-      if (step === 6) {
-        const rows = academicRows.filter((r) => r.name.trim() || r.board.trim() || r.subject.trim())
+      if (step === 5) {
+        const rows = academicRows.filter((r) => r.name || r.board.trim() || r.subject.trim())
           .map((r) => ({ name: r.name, board: r.board, passingYear: r.passingYear, grade: r.grade, subject: r.subject }));
         const saved = await onSaveAcademic(draftId, rows);
         if (saved?.rows) setAcademicRows(saved.rows.map((r) => ({ ...r, localId: r.id })));
-      } else {
-        const newId = await onSaveStep(buildSnapshot(), step, draftId);
-        if (newId && !draftId) setDraftId(newId);
       }
+      const newId = await onSaveStep(buildSnapshot(), step, draftId);
+      if (newId && !draftId) setDraftId(newId);
       setSavedUpTo((prev) => Math.max(prev, step));
       setDirty(false);
       setJustSaved(true);
+      setNavErr("");
     } catch (ex) {
       setErr(ex.message || "Something went wrong while saving. Please try again.");
       setSaving(false);
@@ -1310,20 +1334,26 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const goNext = () => {
-    if (dirty || savedUpTo < step) { setErr("Please save this step before continuing — click \"Save Step\" first."); return; }
-    setErr(""); setStep((s) => Math.min(7, s + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
+    if (dirty || savedUpTo < step) { setNavErr("Please save this step before continuing — click \"Save Step\" first."); return; }
+    setNavErr(""); setErr(""); setStep((s) => Math.min(5, s + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const goBack = () => { setErr(""); setStep((s) => Math.max(1, s - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const goBack = () => { setErr(""); setNavErr(""); setStep((s) => Math.max(1, s - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const submitFinal = async () => {
-    const e = validateStep(7);
+    const e = validateStep(5);
     if (e) { setErr(e); return; }
     setErr(""); setSaving(true);
     try {
+      const rows = academicRows.filter((r) => r.name || r.board.trim() || r.subject.trim())
+        .map((r) => ({ name: r.name, board: r.board, passingYear: r.passingYear, grade: r.grade, subject: r.subject }));
+      await onSaveAcademic(draftId, rows);
       const snap = buildSnapshot();
-      const newId = await onSaveStep(snap, 7, draftId);
+      const newId = await onSaveStep(snap, 5, draftId);
       const finalId = draftId || newId;
       await onFinalSubmit(snap, finalId);
+      if (!paidNow && paymentsConfig?.available && Number(f.amount) > 0) {
+        await payAdmissionFee();
+      }
     } catch (ex) {
       setErr(ex.message || "Something went wrong while submitting. Please try again.");
     }
@@ -1331,6 +1361,67 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const groupCourses = courses.filter((c) => (c.group || "Graduation") === f.courseGroup);
+  const missingDocs = missingAcademicDocuments();
+
+  const fe = {};
+  if (step === 1) {
+    if (!f.firstName.trim()) fe.firstName = "Required";
+    if (!f.lastName.trim()) fe.lastName = "Required";
+    if (!f.email.trim()) fe.email = "Required";
+    else if (!EMAIL_RE.test(f.email.trim())) fe.email = "Enter a valid email address";
+    if (!f.phone.trim()) fe.phone = "Required";
+    else if (!PHONE_RE.test(f.phone.trim())) fe.phone = "Must be 10 digits";
+    if (!f.howKnow) fe.howKnow = "Required";
+    if (!f.emergencyMobile.trim()) fe.emergencyMobile = "Required";
+    else if (!PHONE_RE.test(f.emergencyMobile.trim())) fe.emergencyMobile = "Must be 10 digits";
+    if (f.whatsapp.trim() && !PHONE_RE.test(f.whatsapp.trim())) fe.whatsapp = "Must be 10 digits";
+    if (f.aadhar.trim() && !AADHAR_RE.test(f.aadhar.trim())) fe.aadhar = "Must be 12 digits";
+    if (!f.password) fe.password = "Required";
+    else if (f.password.length < 6) fe.password = "Min 6 characters";
+    if (!f.confirm) fe.confirm = "Required";
+    else if (f.password !== f.confirm) fe.confirm = "Passwords do not match";
+    if (!f.dob) fe.dob = "Required";
+    if (f.maritalStatus === "Married") {
+      if (!f.spouseName.trim()) fe.spouseName = "Required";
+      if (!f.spousePhone.trim()) fe.spousePhone = "Required";
+    }
+    if (f.spousePhone.trim() && !PHONE_RE.test(f.spousePhone.trim())) fe.spousePhone = "Must be 10 digits";
+  } else if (step === 2) {
+    if (!f.permanentAddress.trim()) fe.permanentAddress = "Required";
+    if (!f.contactNo.trim()) fe.contactNo = "Required";
+    else if (!PHONE_RE.test(f.contactNo.trim())) fe.contactNo = "Must be 10 digits";
+    if (!f.mobileNo.trim()) fe.mobileNo = "Required";
+    else if (!PHONE_RE.test(f.mobileNo.trim())) fe.mobileNo = "Must be 10 digits";
+    if (!f.country.trim()) fe.country = "Required";
+    if (!f.state) fe.state = "Required";
+    if (!f.city.trim()) fe.city = "Required";
+    if (!f.pinCode.trim()) fe.pinCode = "Required";
+    else if (!PIN_RE.test(f.pinCode.trim())) fe.pinCode = "Must be 6 digits";
+    if (!f.stateDomicile) fe.stateDomicile = "Required";
+    if (f.addressType === "different") {
+      if (!f.currentAddress.trim()) fe.currentAddress = "Required";
+      if (!f.currentCity.trim()) fe.currentCity = "Required";
+      if (!f.currentState) fe.currentState = "Required";
+      if (!f.currentPinCode.trim()) fe.currentPinCode = "Required";
+      else if (!PIN_RE.test(f.currentPinCode.trim())) fe.currentPinCode = "Must be 6 digits";
+    }
+  } else if (step === 3) {
+    if (!f.fatherFirstMiddle.trim()) fe.fatherFirstMiddle = "Required";
+    if (!f.fatherLastName.trim()) fe.fatherLastName = "Required";
+    if (!f.fatherPhone.trim()) fe.fatherPhone = "Required";
+    else if (!PHONE_RE.test(f.fatherPhone.trim())) fe.fatherPhone = "Must be 10 digits";
+    if (!f.fatherOrg.trim()) fe.fatherOrg = "Required";
+    if (!f.motherFirstMiddle.trim()) fe.motherFirstMiddle = "Required";
+    if (!f.motherLastName.trim()) fe.motherLastName = "Required";
+    if (!f.motherPhone.trim()) fe.motherPhone = "Required";
+    else if (!PHONE_RE.test(f.motherPhone.trim())) fe.motherPhone = "Must be 10 digits";
+    if (!f.motherOrg.trim()) fe.motherOrg = "Required";
+  } else if (step === 4) {
+    if (!f.lastExamYear.trim()) fe.lastExamYear = "Required";
+    else if (!/^\d{4}$/.test(f.lastExamYear.trim())) fe.lastExamYear = "Enter a valid 4-digit year";
+    if (!f.lastExamPercentage.trim()) fe.lastExamPercentage = "Required";
+    if (!f.courseId) fe.courseId = "Please select a course below";
+  }
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -1351,39 +1442,35 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Basic Information</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                <HiField label="First Name" required value={f.firstName} onChange={(v) => setV("firstName", v)} hiValue={f.firstNameHi} onHiChange={(v) => setV("firstNameHi", v)} />
+                <HiField label="First Name" required value={f.firstName} onChange={(v) => setV("firstName", v)} hiValue={f.firstNameHi} onHiChange={(v) => setV("firstNameHi", v)} error={fe.firstName} />
                 <HiField label="Middle Name" value={f.middleName} onChange={(v) => setV("middleName", v)} hiValue={f.middleNameHi} onHiChange={(v) => setV("middleNameHi", v)} />
-                <HiField label="Last Name" required value={f.lastName} onChange={(v) => setV("lastName", v)} hiValue={f.lastNameHi} onHiChange={(v) => setV("lastNameHi", v)} />
+                <HiField label="Last Name" required value={f.lastName} onChange={(v) => setV("lastName", v)} hiValue={f.lastNameHi} onHiChange={(v) => setV("lastNameHi", v)} error={fe.lastName} />
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label>Gender *</label>
                 <Segmented options={["Male", "Female", "Transgender"]} value={f.gender} onChange={(v) => setV("gender", v)} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Email Address *" inputProps={{ type: "email", value: f.email, onChange: set("email"), placeholder: "you@example.com", disabled: !!draftId }} />
-                <Field label="Phone Number *" inputProps={{ value: f.phone, onChange: set("phone"), placeholder: "10-digit mobile" }} />
-                <Field label="How did you know about SPVM? *" as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
+                <Field label="Email Address *" error={fe.email} inputProps={{ type: "email", value: f.email, onChange: set("email"), placeholder: "you@example.com", disabled: !!draftId }} />
+                <Field label="Phone Number *" error={fe.phone} inputProps={{ value: f.phone, onChange: set("phone"), placeholder: "10-digit mobile" }} />
+                <Field label="How did you know about SPVM? *" error={fe.howKnow} as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
                   <option value="">Select an option</option>
                   {HOW_KNOW_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </Field>
-                <Field label="Emergency Mobile No. *" inputProps={{ value: f.emergencyMobile, onChange: set("emergencyMobile"), placeholder: "10-digit mobile" }} />
-                <Field label="WhatsApp No." inputProps={{ value: f.whatsapp, onChange: set("whatsapp"), placeholder: "10-digit mobile" }} />
-                <Field label="Aadhar Number" inputProps={{ value: f.aadhar, onChange: set("aadhar"), placeholder: "12-digit UID" }} />
+                <Field label="Emergency Mobile No. *" error={fe.emergencyMobile} inputProps={{ value: f.emergencyMobile, onChange: set("emergencyMobile"), placeholder: "10-digit mobile" }} />
+                <Field label="WhatsApp No." error={fe.whatsapp} inputProps={{ value: f.whatsapp, onChange: set("whatsapp"), placeholder: "10-digit mobile" }} />
+                <Field label="Aadhar Number" error={fe.aadhar} inputProps={{ value: f.aadhar, onChange: set("aadhar"), placeholder: "12-digit UID" }} />
               </div>
               <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Create Portal Login</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Password *" inputProps={{ type: "password", value: f.password, onChange: set("password"), disabled: !!draftId }} />
-                <Field label="Confirm Password *" inputProps={{ type: "password", value: f.confirm, onChange: set("confirm"), disabled: !!draftId }} />
+                <Field label="Password *" error={fe.password} inputProps={{ type: "password", value: f.password, onChange: set("password"), disabled: !!draftId }} />
+                <Field label="Confirm Password *" error={fe.confirm} inputProps={{ type: "password", value: f.confirm, onChange: set("confirm"), disabled: !!draftId }} />
               </div>
-              {draftId && <div style={{ fontSize: 11.5, color: "var(--slate)", marginTop: -6 }}>Email and password are locked once your first step is saved. Use "Edit Profile" after admission to change your password.</div>}
-            </>
-          )}
+              {draftId && <div style={{ fontSize: 11.5, color: "var(--slate)", marginTop: -6, marginBottom: 18 }}>Email and password are locked once your first step is saved. Use "Edit Profile" after admission to change your password.</div>}
 
-          {step === 2 && (
-            <>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>Personal Details</div>
+              <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Personal Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Date of Birth *" inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
+                <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
                 <div>
                   <label>Marital Status *</label>
                   <Segmented options={["Unmarried", "Married"]} value={f.maritalStatus} onChange={(v) => setV("maritalStatus", v)} />
@@ -1391,8 +1478,8 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               </div>
               {f.maritalStatus === "Married" && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <Field label="Spouse Name *" inputProps={{ value: f.spouseName, onChange: set("spouseName") }} />
-                  <Field label="Spouse Phone Number *" inputProps={{ value: f.spousePhone, onChange: set("spousePhone") }} />
+                  <Field label="Spouse Name *" error={fe.spouseName} inputProps={{ value: f.spouseName, onChange: set("spouseName") }} />
+                  <Field label="Spouse Phone Number *" error={fe.spousePhone} inputProps={{ value: f.spousePhone, onChange: set("spousePhone") }} />
                 </div>
               )}
               <div style={{ marginBottom: 18 }}>
@@ -1407,21 +1494,21 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
             </>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Permanent Address</div>
-              <Field label="Permanent Address *" as="textarea" inputProps={{ value: f.permanentAddress, onChange: set("permanentAddress") }} />
+              <Field label="Permanent Address *" error={fe.permanentAddress} as="textarea" inputProps={{ value: f.permanentAddress, onChange: set("permanentAddress") }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Contact No. *" inputProps={{ value: f.contactNo, onChange: set("contactNo") }} />
-                <Field label="Mobile No. *" inputProps={{ value: f.mobileNo, onChange: set("mobileNo") }} />
-                <Field label="Country *" inputProps={{ value: f.country, onChange: set("country") }} />
-                <Field label="State *" as="select" selectProps={{ value: f.state, onChange: set("state") }}>
+                <Field label="Contact No. *" error={fe.contactNo} inputProps={{ value: f.contactNo, onChange: set("contactNo") }} />
+                <Field label="Mobile No. *" error={fe.mobileNo} inputProps={{ value: f.mobileNo, onChange: set("mobileNo") }} />
+                <Field label="Country *" error={fe.country} inputProps={{ value: f.country, onChange: set("country") }} />
+                <Field label="State *" error={fe.state} as="select" selectProps={{ value: f.state, onChange: set("state") }}>
                   <option value="">Select State</option>
                   {INDIA_STATES.map((s) => <option key={s}>{s}</option>)}
                 </Field>
-                <Field label="City *" inputProps={{ value: f.city, onChange: set("city") }} />
-                <Field label="PIN Code *" inputProps={{ value: f.pinCode, onChange: set("pinCode") }} />
-                <Field label="State of Domicile *" as="select" selectProps={{ value: f.stateDomicile, onChange: set("stateDomicile") }}>
+                <Field label="City *" error={fe.city} inputProps={{ value: f.city, onChange: set("city") }} />
+                <Field label="PIN Code *" error={fe.pinCode} inputProps={{ value: f.pinCode, onChange: set("pinCode") }} />
+                <Field label="State of Domicile *" error={fe.stateDomicile} as="select" selectProps={{ value: f.stateDomicile, onChange: set("stateDomicile") }}>
                   <option value="">Select State</option>
                   {INDIA_STATES.map((s) => <option key={s}>{s}</option>)}
                 </Field>
@@ -1435,49 +1522,49 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               />
               {f.addressType === "different" && (
                 <div style={{ marginTop: 14 }}>
-                  <Field label="Current Address *" as="textarea" inputProps={{ value: f.currentAddress, onChange: set("currentAddress") }} />
+                  <Field label="Current Address *" error={fe.currentAddress} as="textarea" inputProps={{ value: f.currentAddress, onChange: set("currentAddress") }} />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                    <Field label="City *" inputProps={{ value: f.currentCity, onChange: set("currentCity") }} />
-                    <Field label="State *" as="select" selectProps={{ value: f.currentState, onChange: set("currentState") }}>
+                    <Field label="City *" error={fe.currentCity} inputProps={{ value: f.currentCity, onChange: set("currentCity") }} />
+                    <Field label="State *" error={fe.currentState} as="select" selectProps={{ value: f.currentState, onChange: set("currentState") }}>
                       <option value="">Select State</option>
                       {INDIA_STATES.map((s) => <option key={s}>{s}</option>)}
                     </Field>
-                    <Field label="PIN Code *" inputProps={{ value: f.currentPinCode, onChange: set("currentPinCode") }} />
+                    <Field label="PIN Code *" error={fe.currentPinCode} inputProps={{ value: f.currentPinCode, onChange: set("currentPinCode") }} />
                   </div>
                 </div>
               )}
             </>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Father's Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <HiField label="Father's First & Middle Name" required value={f.fatherFirstMiddle} onChange={(v) => setV("fatherFirstMiddle", v)} hiValue={f.fatherFirstMiddleHi} onHiChange={(v) => setV("fatherFirstMiddleHi", v)} />
-                <HiField label="Father's Last Name" required value={f.fatherLastName} onChange={(v) => setV("fatherLastName", v)} hiValue={f.fatherLastNameHi} onHiChange={(v) => setV("fatherLastNameHi", v)} />
+                <HiField label="Father's First & Middle Name" required value={f.fatherFirstMiddle} onChange={(v) => setV("fatherFirstMiddle", v)} hiValue={f.fatherFirstMiddleHi} onHiChange={(v) => setV("fatherFirstMiddleHi", v)} error={fe.fatherFirstMiddle} />
+                <HiField label="Father's Last Name" required value={f.fatherLastName} onChange={(v) => setV("fatherLastName", v)} hiValue={f.fatherLastNameHi} onHiChange={(v) => setV("fatherLastNameHi", v)} error={fe.fatherLastName} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Father's Phone No. *" inputProps={{ value: f.fatherPhone, onChange: set("fatherPhone") }} />
+                <Field label="Father's Phone No. *" error={fe.fatherPhone} inputProps={{ value: f.fatherPhone, onChange: set("fatherPhone") }} />
                 <Field label="Father's Email ID" inputProps={{ type: "email", value: f.fatherEmail, onChange: set("fatherEmail") }} />
                 <Field label="Father's Occupation *" as="select" selectProps={{ value: f.fatherOccupation, onChange: set("fatherOccupation") }}>
                   {OCCUPATIONS.map((o) => <option key={o}>{o}</option>)}
                 </Field>
-                <Field label="Father's Organization *" inputProps={{ value: f.fatherOrg, onChange: set("fatherOrg") }} />
+                <Field label="Father's Organization *" error={fe.fatherOrg} inputProps={{ value: f.fatherOrg, onChange: set("fatherOrg") }} />
                 <Field label="Father's Post" inputProps={{ value: f.fatherPost, onChange: set("fatherPost") }} />
               </div>
 
               <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Mother's Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <HiField label="Mother's First & Middle Name" required value={f.motherFirstMiddle} onChange={(v) => setV("motherFirstMiddle", v)} hiValue={f.motherFirstMiddleHi} onHiChange={(v) => setV("motherFirstMiddleHi", v)} />
-                <HiField label="Mother's Last Name" required value={f.motherLastName} onChange={(v) => setV("motherLastName", v)} hiValue={f.motherLastNameHi} onHiChange={(v) => setV("motherLastNameHi", v)} />
+                <HiField label="Mother's First & Middle Name" required value={f.motherFirstMiddle} onChange={(v) => setV("motherFirstMiddle", v)} hiValue={f.motherFirstMiddleHi} onHiChange={(v) => setV("motherFirstMiddleHi", v)} error={fe.motherFirstMiddle} />
+                <HiField label="Mother's Last Name" required value={f.motherLastName} onChange={(v) => setV("motherLastName", v)} hiValue={f.motherLastNameHi} onHiChange={(v) => setV("motherLastNameHi", v)} error={fe.motherLastName} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Mother's Phone No. *" inputProps={{ value: f.motherPhone, onChange: set("motherPhone") }} />
+                <Field label="Mother's Phone No. *" error={fe.motherPhone} inputProps={{ value: f.motherPhone, onChange: set("motherPhone") }} />
                 <Field label="Mother's Email ID" inputProps={{ type: "email", value: f.motherEmail, onChange: set("motherEmail") }} />
                 <Field label="Mother's Occupation *" as="select" selectProps={{ value: f.motherOccupation, onChange: set("motherOccupation") }}>
                   {OCCUPATIONS.map((o) => <option key={o}>{o}</option>)}
                 </Field>
-                <Field label="Mother's Organization *" inputProps={{ value: f.motherOrg, onChange: set("motherOrg") }} />
+                <Field label="Mother's Organization *" error={fe.motherOrg} inputProps={{ value: f.motherOrg, onChange: set("motherOrg") }} />
                 <Field label="Mother's Post" inputProps={{ value: f.motherPost, onChange: set("motherPost") }} />
               </div>
 
@@ -1491,13 +1578,13 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
             </>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Educational Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <Field label="Last Institution Attended" inputProps={{ value: f.lastInstitution, onChange: set("lastInstitution"), placeholder: "School / College / University name" }} />
-                <Field label="Last Exam Passed Out Year *" inputProps={{ value: f.lastExamYear, onChange: set("lastExamYear"), placeholder: "e.g. 2024" }} />
-                <Field label="Last Exam Percentage *" inputProps={{ value: f.lastExamPercentage, onChange: set("lastExamPercentage"), placeholder: "e.g. 78%" }} />
+                <Field label="Last Exam Passed Out Year *" error={fe.lastExamYear} inputProps={{ value: f.lastExamYear, onChange: set("lastExamYear"), placeholder: "e.g. 2024" }} />
+                <Field label="Last Exam Percentage *" error={fe.lastExamPercentage} inputProps={{ value: f.lastExamPercentage, onChange: set("lastExamPercentage"), placeholder: "e.g. 78%" }} />
                 <Field label="Result of Qualifying Exam *" as="select" selectProps={{ value: f.resultStatus, onChange: set("resultStatus") }}>
                   <option>Pass</option><option>Supplementary</option><option>Result Awaited</option>
                 </Field>
@@ -1509,13 +1596,14 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               </div>
 
               <div className="eyebrow" style={{ marginBottom: 10 }}>Course Selection *</div>
+              {fe.courseId && <div style={{ fontSize: 11, color: "var(--danger)", marginBottom: 8 }}>{fe.courseId}</div>}
               <div style={{ marginBottom: 14, maxWidth: 260 }}>
                 <label>Course Group</label>
                 <select value={f.courseGroup} onChange={(e) => { setF({ ...f, courseGroup: e.target.value, courseId: "", amount: "" }); setDirty(true); setJustSaved(false); }}>
                   {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
                 </select>
               </div>
-              <div className="card" style={{ marginBottom: 18 }}>
+              <div className="card" style={{ marginBottom: 18, border: fe.courseId ? "1px solid var(--danger)" : undefined }}>
                 <table className="ledger">
                   <thead><tr><th>S.No.</th><th>Course</th><th>Admission Fee</th><th>Priority</th><th style={{ textAlign: "center" }}>Select</th></tr></thead>
                   <tbody>
@@ -1545,11 +1633,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
             </>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Academic Details</div>
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
-                Add every qualifying exam you've passed (e.g. 10th, 12th, Graduation) — one row each.
+                Add every qualifying exam you've passed (e.g. 10th, 12th, Graduation) — one row each. You'll need to upload a matching document below for each one.
               </p>
               <div className="card" style={{ marginBottom: 14 }}>
                 <div style={{ overflowX: "auto" }}>
@@ -1561,7 +1649,12 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                       {academicRows.map((r, i) => (
                         <tr key={r.localId}>
                           <td className="num">{i + 1}</td>
-                          <td><input value={r.name} onChange={(e) => updateAcademicRow(r.localId, "name", e.target.value)} placeholder="e.g. 10th, 12th, B.A." style={{ minWidth: 120 }} /></td>
+                          <td>
+                            <select value={r.name} onChange={(e) => updateAcademicRow(r.localId, "name", e.target.value)} style={{ minWidth: 130 }}>
+                              <option value="">Select</option>
+                              {ACADEMIC_NAME_OPTIONS.map((n) => <option key={n}>{n}</option>)}
+                            </select>
+                          </td>
                           <td><input value={r.board} onChange={(e) => updateAcademicRow(r.localId, "board", e.target.value)} placeholder="e.g. CBSE, RBSE" style={{ minWidth: 140 }} /></td>
                           <td><input value={r.passingYear} onChange={(e) => updateAcademicRow(r.localId, "passingYear", e.target.value)} placeholder="e.g. 2023" style={{ minWidth: 90 }} /></td>
                           <td><input value={r.grade} onChange={(e) => updateAcademicRow(r.localId, "grade", e.target.value)} placeholder="e.g. A1, 78%" style={{ minWidth: 90 }} /></td>
@@ -1574,14 +1667,10 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 </div>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={addAcademicRow}><Plus size={13} /> Add More Details</button>
-            </>
-          )}
 
-          {step === 7 && (
-            <>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>Documents</div>
+              <div className="eyebrow" style={{ margin: "24px 0 10px" }}>Documents</div>
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
-                Upload scanned copies of your documents (JPG, JPEG, PNG, or GIF, under 5MB each). Uploading here is optional — you may also be asked to submit hard copies at the college.
+                Upload one document per academic record above (JPG, JPEG, PNG, or GIF, under 5MB each) — the document type must match the academic record it belongs to.
               </p>
               <div className="card" style={{ marginBottom: 14 }}>
                 <div style={{ overflowX: "auto" }}>
@@ -1622,6 +1711,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 </div>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={addDocumentRow}><Plus size={13} /> Add More Details</button>
+              {missingDocs.length > 0 && (
+                <div style={{ fontSize: 11.5, color: "var(--danger)", marginTop: 8 }}>
+                  Missing a matching document for: {missingDocs.map((r) => r.name).join(", ")}.
+                </div>
+              )}
 
               <div className="eyebrow" style={{ margin: "22px 0 10px" }}>Admission Fee Payment</div>
               <div className="card" style={{ marginBottom: 18 }}>
@@ -1633,7 +1727,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                       <div style={{ fontSize: 12, color: "var(--slate)", marginTop: 2 }}>
                         {paidNow
                           ? "Payment received — thank you."
-                          : "Optional at this stage. You can also pay later from your Fees page after your account is approved."}
+                          : "You'll be asked to pay this right after you submit. You can also pay later from your Fees page."}
                       </div>
                     </div>
                     {paidNow ? (
@@ -1650,22 +1744,16 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               </div>
 
               <div className="eyebrow" style={{ marginBottom: 10 }}>घोषणा (Declaration)</div>
-              <div className="card" style={{ marginBottom: 10 }}>
+              <div className="card" style={{ marginBottom: 10, border: !agreeTerms ? "1px solid var(--danger)" : undefined }}>
                 <div className="card-body" style={{ fontSize: 13, lineHeight: 1.7 }}>
-                  <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginBottom: 14 }}>
-                    <input type="checkbox" checked={declAccepted} onChange={(e) => setDeclAccepted(e.target.checked)} style={{ width: "auto", marginTop: 3 }} />
-                    <span>
-                      मैंने महाविद्यालय की प्रवेश नीति एवं नियमों को पढ़ लिया है तथा मुझे यह स्वीकार्य है। मैं महाविद्यालय के समस्त नियमों का पालन करूंगा/करूंगी तथा महाविद्यालय की संपत्ति को कोई क्षति नहीं पहुंचाऊंगा/पहुंचाऊंगी।
-                      <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I have read and accept the college's admission policy and rules, and will abide by them.</span>
-                    </span>
-                  </label>
                   <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
-                    <input type="checkbox" checked={declTruth} onChange={(e) => setDeclTruth(e.target.checked)} style={{ width: "auto", marginTop: 3 }} />
+                    <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} style={{ width: "auto", marginTop: 3 }} />
                     <span>
-                      मैं घोषणा करता/करती हूँ कि इस प्रार्थना पत्र में दी गई समस्त जानकारी सत्य एवं सही है। यदि कोई जानकारी असत्य पाई जाती है, तो महाविद्यालय मेरा प्रवेश निरस्त करने का अधिकार रखता है।
-                      <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I declare that all information in this application is true and correct. The college may cancel my admission if any information is found false.</span>
+                      <strong>I agree to the terms and conditions.</strong> मैंने महाविद्यालय की प्रवेश नीति एवं नियमों को पढ़ लिया है, यह स्वीकार्य है, तथा इस प्रार्थना पत्र में दी गई समस्त जानकारी सत्य एवं सही है। यदि कोई जानकारी असत्य पाई जाती है, तो महाविद्यालय मेरा प्रवेश निरस्त करने का अधिकार रखता है।
+                      <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I have read and accept the college's admission policy and rules, will abide by them, and declare that all information in this application is true and correct.</span>
                     </span>
                   </label>
+                  {!agreeTerms && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 8 }}>You must accept the terms and conditions before submitting.</div>}
                 </div>
               </div>
             </>
@@ -1677,13 +1765,14 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               <button className="btn btn-outline" onClick={doSave} disabled={saving || (!dirty && savedUpTo >= step)}>
                 {saving ? "Saving…" : "Save Step"}
               </button>
-              {step < 7 ? (
+              {step < 5 ? (
                 <button className="btn btn-primary" onClick={goNext} disabled={saving}>Next <ChevronRight size={14} /></button>
               ) : (
                 <button className="btn btn-primary" onClick={submitFinal} disabled={saving}><FileText size={14} /> {saving ? "Submitting…" : "Submit Application"}</button>
               )}
             </div>
           </div>
+          {navErr && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 12.5, marginTop: 10, textAlign: "right" }}>{navErr}</div>}
         </div>
       </div>
     </div>
@@ -4694,6 +4783,7 @@ export default function App() {
   useEffect(() => {
     if (!user && view === "admission" && store.courses.length === 0) {
       api.get("/courses").then((courses) => setStore((prev) => ({ ...prev, courses }))).catch(() => {});
+      api.get("/payments/config").then((paymentsConfig) => setStore((prev) => ({ ...prev, paymentsConfig }))).catch(() => {});
     }
   }, [user, view]);
 
