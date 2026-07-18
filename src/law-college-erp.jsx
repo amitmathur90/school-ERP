@@ -2158,6 +2158,7 @@ function AdminPermissionsModal({ admin, actions, onClose, onSaved }) {
 function AdmissionsRegistry({ students, courses, actions, academicDetails, documents }) {
   const [filter, setFilter] = useState("pending");
   const [courseFilter, setCourseFilter] = useState("All");
+  const [q, setQ] = useState("");
   const [rejecting, setRejecting] = useState(null);
   const [reason, setReason] = useState("");
   const [viewingId, setViewingId] = useState(null);
@@ -2165,7 +2166,16 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
   const [selected, setSelected] = useState(new Set());
   const [importing, setImporting] = useState(false);
 
-  const list = students.filter((s) => (s.status || "").toLowerCase() === filter).filter((s) => courseFilter === "All" || s.courseId === courseFilter);
+  const list = students
+    .filter((s) => (s.status || "").toLowerCase() === filter)
+    .filter((s) => courseFilter === "All" || s.courseId === courseFilter)
+    .filter((s) => {
+      const needle = q.trim().toLowerCase();
+      if (!needle) return true;
+      return (s.name || "").toLowerCase().includes(needle)
+        || (s.email || "").toLowerCase().includes(needle)
+        || (s.phone || "").includes(needle);
+    });
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
   const changeFilter = (f) => { setFilter(f); setSelected(new Set()); };
@@ -2203,7 +2213,11 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", minWidth: 220 }}>
+        <div style={{ marginLeft: "auto", position: "relative" }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+          <input placeholder="Search name, email or phone" value={q} onChange={(e) => setQ(e.target.value)} style={{ paddingLeft: 30, width: 220 }} />
+        </div>
+        <div style={{ minWidth: 220 }}>
           <select value={courseFilter} onChange={(e) => changeCourseFilter(e.target.value)}>
             <option value="All">All Courses</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -2963,6 +2977,9 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
   const [photoErr, setPhotoErr] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [roleFilter, setRoleFilter] = useState("All");
+  const [deptFilter, setDeptFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [q, setQ] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const toggleOne = (id) => setSelected((prev) => {
@@ -2970,7 +2987,18 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const visible = roleFilter === "All" ? teachers : teachers.filter((t) => t.role === roleFilter);
+  const departments = Array.from(new Set(teachers.map((t) => t.department).filter(Boolean))).sort();
+  const visible = teachers
+    .filter((t) => roleFilter === "All" || t.role === roleFilter)
+    .filter((t) => deptFilter === "All" || t.department === deptFilter)
+    .filter((t) => statusFilter === "All" || t.status === statusFilter)
+    .filter((t) => {
+      const needle = q.trim().toLowerCase();
+      if (!needle) return true;
+      return (t.name || "").toLowerCase().includes(needle)
+        || (t.email || "").toLowerCase().includes(needle)
+        || (t.employeeId || "").toLowerCase().includes(needle);
+    });
   const allVisibleSelected = visible.length > 0 && visible.every((t) => selected.has(t.id));
   const toggleAll = () => setSelected(allVisibleSelected ? new Set() : new Set(visible.map((t) => t.id)));
 
@@ -3032,10 +3060,23 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
     <>
       <SectionHeader
         eyebrow="Staff" title="Faculty & Staff"
-        action={<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ width: 190 }}>
+        action={<div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ position: "relative" }}>
+            <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+            <input placeholder="Search name, email or ID" value={q} onChange={(e) => setQ(e.target.value)} style={{ paddingLeft: 30, width: 200 }} />
+          </div>
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ width: 170 }}>
             <option value="All">All Roles</option>
             {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+          <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ width: 170 }}>
+            <option value="All">All Departments</option>
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: 140 }}>
+            <option value="All">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
           {!readOnly && <button className="btn btn-primary" onClick={openAdd}><Plus size={14} /> Add Staff Member</button>}
         </div>}
