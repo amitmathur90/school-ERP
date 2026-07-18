@@ -4729,23 +4729,24 @@ function StudentPortal({ user, store, actions, onLogout }) {
             eyebrow="Results" title="Academic Record"
             action={<button className="btn btn-outline" onClick={() => setShowResult(true)}><Eye size={14} /> View Result</button>}
           />
-          {gradeGroups.length === 0 ? (
-            <div className="card"><div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div></div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {gradeGroups.map((grp) => (
-                <div className="card" key={grp.key}>
-                  <div className="card-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px" }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>Semester {grp.semester} &middot; {grp.examType}</div>
-                      <div style={{ fontSize: 12, color: "var(--slate)" }}>{grp.subjects.length} subject{grp.subjects.length > 1 ? "s" : ""}</div>
-                    </div>
-                    <button className="btn btn-outline btn-sm" onClick={() => setViewingResultGroup(grp)}>View More</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="card">
+            {gradeGroups.length === 0 ? (
+              <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div>
+            ) : (
+              <table className="ledger">
+                <thead><tr><th>Semester</th><th>Exam</th><th></th></tr></thead>
+                <tbody>
+                  {gradeGroups.map((grp) => (
+                    <tr key={grp.key}>
+                      <td className="num">Semester {grp.semester}</td>
+                      <td>{grp.examType}</td>
+                      <td><button className="btn btn-outline btn-sm" onClick={() => setViewingResultGroup(grp)}>View Result</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
 
