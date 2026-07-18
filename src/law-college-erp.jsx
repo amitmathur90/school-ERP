@@ -4772,12 +4772,13 @@ function StudentPortal({ user, store, actions, onLogout }) {
             </div>
 
             <table className="ledger">
-              <thead><tr><th>Subject</th><th>Score</th><th>%</th></tr></thead>
+              <thead><tr><th>Subject</th><th>Marks Obtained</th><th>Max Marks</th><th>%</th></tr></thead>
               <tbody>
                 {viewingResultGroup.subjects.map((g) => (
                   <tr key={g.id}>
                     <td>{g.subject}</td>
-                    <td className="num">{g.marks}/{g.maxMarks}</td>
+                    <td className="num">{g.marks}</td>
+                    <td className="num">{g.maxMarks}</td>
                     <td className="num">{g.maxMarks ? Math.round((g.marks / g.maxMarks) * 1000) / 10 : "—"}%</td>
                   </tr>
                 ))}
@@ -4785,7 +4786,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
               <tfoot>
                 <tr>
                   <td style={{ fontWeight: 700, background: "#FBF9F4" }}>Total</td>
-                  <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{totalObtained}/{totalMax}</td>
+                  <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{totalObtained}</td>
+                  <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{totalMax}</td>
                   <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{overallPct !== null ? `${overallPct}%` : "—"}</td>
                 </tr>
               </tfoot>
