@@ -786,8 +786,12 @@ function ApplicationSummary({ student, course, printable, academicDetails, docum
 
 function ResultCard({ student, course, grades }) {
   const [semFilter, setSemFilter] = useState("All");
+  const [examFilter, setExamFilter] = useState("All");
   const semesters = Array.from(new Set(grades.map((g) => g.semester))).sort((a, b) => a - b);
-  const filtered = semFilter === "All" ? grades : grades.filter((g) => String(g.semester) === String(semFilter));
+  const examTypesPresent = Array.from(new Set(grades.map((g) => g.examType))).sort();
+  const filtered = grades
+    .filter((g) => semFilter === "All" || String(g.semester) === String(semFilter))
+    .filter((g) => examFilter === "All" || g.examType === examFilter);
   const totalObtained = filtered.reduce((sum, g) => sum + Number(g.marks || 0), 0);
   const totalMax = filtered.reduce((sum, g) => sum + Number(g.maxMarks || 0), 0);
   const overallPct = totalMax ? Math.round((totalObtained / totalMax) * 1000) / 10 : null;
@@ -810,6 +814,15 @@ function ResultCard({ student, course, grades }) {
             <select value={semFilter} onChange={(e) => setSemFilter(e.target.value)}>
               <option value="All">All Semesters</option>
               {semesters.map((s) => <option key={s} value={s}>Semester {s}</option>)}
+            </select>
+          </div>
+        )}
+        {examTypesPresent.length > 1 && (
+          <div style={{ minWidth: 170 }}>
+            <label>Exam Type</label>
+            <select value={examFilter} onChange={(e) => setExamFilter(e.target.value)}>
+              <option value="All">All Exam Types</option>
+              {examTypesPresent.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         )}
@@ -4399,105 +4412,133 @@ function AttendanceMarking({ courses, students, actions, teacherSubject }) {
   );
 }
 
-function GradesEntry({ courses, students, grades, actions }) {
-  const [courseId, setCourseId] = useState(courses[0]?.id || "");
-  const roster = students.filter((s) => s.courseId === courseId);
-  const [studentId, setStudentId] = useState(roster[0]?.id || "");
-  const [studentsForCourse, setStudentsForCourse] = useState(courseId);
+function CreateResultModal({ studentName, onClose, onSave }) {
   const [examType, setExamType] = useState(EXAM_TYPES[0]);
   const [semester, setSemester] = useState("1");
   const [rows, setRows] = useState([{ rid: uid("row"), subject: "", marks: "", maxMarks: "100" }]);
   const [err, setErr] = useState("");
-
-  if (courseId !== studentsForCourse) {
-    setStudentsForCourse(courseId);
-    setStudentId(roster[0]?.id || "");
-  }
 
   const setRow = (rid, patch) => setRows((prev) => prev.map((r) => r.rid === rid ? { ...r, ...patch } : r));
   const addRow = () => setRows((prev) => [...prev, { rid: uid("row"), subject: "", marks: "", maxMarks: "100" }]);
   const removeRow = (rid) => setRows((prev) => prev.length > 1 ? prev.filter((r) => r.rid !== rid) : prev);
 
   const submit = () => {
-    if (!studentId) { setErr("Please select a student."); return; }
     const validRows = rows.filter((r) => r.subject.trim() && r.marks !== "");
     if (validRows.length === 0) { setErr("Enter at least one subject with marks obtained."); return; }
     setErr("");
-    validRows.forEach((r) => {
-      actions.addGrade(studentId, {
-        subject: r.subject.trim(),
-        marks: Number(r.marks),
-        maxMarks: Number(r.maxMarks) || 100,
-        examType, semester: Number(semester) || 1,
-        id: uid("g"),
-      });
-    });
-    setRows([{ rid: uid("row"), subject: "", marks: "", maxMarks: "100" }]);
+    onSave(validRows.map((r) => ({
+      subject: r.subject.trim(),
+      marks: Number(r.marks),
+      maxMarks: Number(r.maxMarks) || 100,
+      examType, semester: Number(semester) || 1,
+      id: uid("g"),
+    })));
   };
 
+  return (
+    <Modal title={`Create New Result — ${studentName}`} onClose={onClose} width={640}>
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 6 }}>
+        <div><label>Exam Type</label>
+          <select value={examType} onChange={(e) => setExamType(e.target.value)}>
+            {EXAM_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div><label>Semester</label>
+          <input type="number" value={semester} onChange={(e) => setSemester(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="eyebrow" style={{ margin: "14px 0 8px" }}>Subjects</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+        {rows.map((r) => (
+          <div key={r.rid} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "start" }}>
+            <div><label>Subject</label>
+              <input value={r.subject} onChange={(e) => setRow(r.rid, { subject: e.target.value })} placeholder="e.g. Law of Contracts" />
+            </div>
+            <div><label>Marks Obtained</label>
+              <input type="number" value={r.marks} onChange={(e) => setRow(r.rid, { marks: e.target.value })} />
+            </div>
+            <div><label>Max Marks</label>
+              <input type="number" value={r.maxMarks} onChange={(e) => setRow(r.rid, { maxMarks: e.target.value })} />
+            </div>
+            <div style={{ paddingTop: 22 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => removeRow(r.rid)} disabled={rows.length === 1}><Trash2 size={13} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button className="btn btn-ghost btn-sm" onClick={addRow} style={{ marginBottom: 14 }}><Plus size={13} /> Add Another Subject</button>
+
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={submit}><Plus size={14} /> Save Result</button>
+      </div>
+    </Modal>
+  );
+}
+
+function GradesEntry({ courses, students, grades, actions }) {
+  const [courseId, setCourseId] = useState(courses[0]?.id || "");
+  const roster = students.filter((s) => s.courseId === courseId);
+  const [studentId, setStudentId] = useState(roster[0]?.id || "");
+  const [studentsForCourse, setStudentsForCourse] = useState(courseId);
+  const [creating, setCreating] = useState(false);
+  const [examFilter, setExamFilter] = useState("All");
+
+  if (courseId !== studentsForCourse) {
+    setStudentsForCourse(courseId);
+    setStudentId(roster[0]?.id || "");
+  }
+
+  const selectedStudent = roster.find((s) => s.id === studentId);
   const studentGrades = grades[studentId] || [];
+  const examTypesPresent = Array.from(new Set(studentGrades.map((g) => g.examType))).sort();
+  const visibleGrades = examFilter === "All" ? studentGrades : studentGrades.filter((g) => g.examType === examFilter);
+
+  const saveResult = (newRows) => {
+    newRows.forEach((row) => actions.addGrade(studentId, row));
+    setCreating(false);
+  };
 
   return (
     <>
-      <SectionHeader eyebrow="Assessment" title="Enter Grades" />
+      <SectionHeader
+        eyebrow="Assessment" title="Enter Grades"
+        action={<button className="btn btn-primary" onClick={() => setCreating(true)} disabled={!studentId}><Plus size={14} /> Create New Result</button>}
+      />
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-body">
-          {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginBottom: 6 }}>
-            <div><label>Course</label>
-              <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-                {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div><label>Student Name</label>
-              <select value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-                {roster.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.rollNo})</option>)}
-              </select>
-            </div>
-            <div><label>Exam Type</label>
-              <select value={examType} onChange={(e) => setExamType(e.target.value)}>
-                {EXAM_TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div><label>Semester</label>
-              <input type="number" value={semester} onChange={(e) => setSemester(e.target.value)} />
-            </div>
+        <div className="card-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div><label>Course</label>
+            <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
-
-          <div className="eyebrow" style={{ margin: "14px 0 8px" }}>Subjects</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
-            {rows.map((r) => (
-              <div key={r.rid} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "start" }}>
-                <div><label>Subject</label>
-                  <input value={r.subject} onChange={(e) => setRow(r.rid, { subject: e.target.value })} placeholder="e.g. Law of Contracts" />
-                </div>
-                <div><label>Marks Obtained</label>
-                  <input type="number" value={r.marks} onChange={(e) => setRow(r.rid, { marks: e.target.value })} />
-                </div>
-                <div><label>Max Marks</label>
-                  <input type="number" value={r.maxMarks} onChange={(e) => setRow(r.rid, { maxMarks: e.target.value })} />
-                </div>
-                <div style={{ paddingTop: 22 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => removeRow(r.rid)} disabled={rows.length === 1}><Trash2 size={13} /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={addRow} style={{ marginBottom: 14 }}><Plus size={13} /> Add Another Subject</button>
-
-          <div>
-            <button className="btn btn-primary" onClick={submit} disabled={!studentId}><Plus size={14} /> Save Grade(s)</button>
+          <div><label>Student Name</label>
+            <select value={studentId} onChange={(e) => setStudentId(e.target.value)}>
+              {roster.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.rollNo})</option>)}
+            </select>
           </div>
         </div>
       </div>
+
       <div className="card">
-        <div className="card-header"><h3 style={{ fontSize: 15 }}>Grade History {roster.find((s) => s.id === studentId) ? `— ${roster.find((s) => s.id === studentId).name}` : ""}</h3></div>
-        {studentGrades.length === 0 ? <div className="card-body"><EmptyState icon={<Award size={28} />} title="No grades recorded" note="Add the first grade above." /></div> : (
+        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <h3 style={{ fontSize: 15 }}>Grade History {selectedStudent ? `— ${selectedStudent.name}` : ""}</h3>
+          {examTypesPresent.length > 1 && (
+            <select value={examFilter} onChange={(e) => setExamFilter(e.target.value)} style={{ width: 200 }}>
+              <option value="All">All Exam Types</option>
+              {examTypesPresent.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+        </div>
+        {visibleGrades.length === 0 ? (
+          <div className="card-body"><EmptyState icon={<Award size={28} />} title="No grades recorded" note="Click Create New Result above to add the first one." /></div>
+        ) : (
           <table className="ledger">
             <thead><tr><th>Semester</th><th>Subject</th><th>Exam</th><th>Score</th><th></th></tr></thead>
             <tbody>
-              {studentGrades.map((g) => (
+              {visibleGrades.map((g) => (
                 <tr key={g.id}>
                   <td className="num">Sem {g.semester}</td>
                   <td>{g.subject}</td>
@@ -4510,6 +4551,10 @@ function GradesEntry({ courses, students, grades, actions }) {
           </table>
         )}
       </div>
+
+      {creating && selectedStudent && (
+        <CreateResultModal studentName={selectedStudent.name} onClose={() => setCreating(false)} onSave={saveResult} />
+      )}
     </>
   );
 }
@@ -4522,6 +4567,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const [payingOnline, setPayingOnline] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState(null);
   const [viewingNotice, setViewingNotice] = useState(null);
+  const [gradeExamFilter, setGradeExamFilter] = useState("All");
   const student = store.students.find((s) => s.id === user.id);
 
   if (!student) return null;
@@ -4569,6 +4615,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const pct = attendance.length ? Math.round((attendance.filter((r) => r.status === "Present").length / attendance.length) * 100) : null;
   const fee = store.fees[student.id];
   const gradeList = store.grades[student.id] || [];
+  const gradeExamTypes = Array.from(new Set(gradeList.map((g) => g.examType))).sort();
+  const filteredGradeList = gradeExamFilter === "All" ? gradeList : gradeList.filter((g) => g.examType === gradeExamFilter);
   const myTransactions = store.transactions.filter((t) => t.studentId === student.id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const myMessages = store.messages.filter((m) => m.toStudentId === student.id);
   const unreadCount = myMessages.filter((m) => !m.isRead).length;
@@ -4676,11 +4724,20 @@ function StudentPortal({ user, store, actions, onLogout }) {
             eyebrow="Results" title="Academic Record"
             action={<button className="btn btn-outline" onClick={() => setShowResult(true)}><Eye size={14} /> View Result</button>}
           />
+          {gradeExamTypes.length > 1 && (
+            <div style={{ marginBottom: 14, maxWidth: 240 }}>
+              <label>Exam Type</label>
+              <select value={gradeExamFilter} onChange={(e) => setGradeExamFilter(e.target.value)}>
+                <option value="All">All Exam Types</option>
+                {gradeExamTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
           <div className="card">
-            {gradeList.length === 0 ? <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div> : (
+            {filteredGradeList.length === 0 ? <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div> : (
               <table className="ledger">
                 <thead><tr><th>Semester</th><th>Subject</th><th>Exam</th><th>Score</th></tr></thead>
-                <tbody>{gradeList.map((g) => (
+                <tbody>{filteredGradeList.map((g) => (
                   <tr key={g.id}><td className="num">Sem {g.semester}</td><td>{g.subject}</td><td>{g.examType}</td><td className="num">{g.marks}/{g.maxMarks}</td></tr>
                 ))}</tbody>
               </table>
