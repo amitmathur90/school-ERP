@@ -4750,25 +4750,57 @@ function StudentPortal({ user, store, actions, onLogout }) {
         </>
       )}
 
-      {viewingResultGroup && (
-        <Modal title={`Semester ${viewingResultGroup.semester} — ${viewingResultGroup.examType}`} onClose={() => setViewingResultGroup(null)}>
-          <table className="ledger">
-            <thead><tr><th>Subject</th><th>Score</th><th>%</th></tr></thead>
-            <tbody>
-              {viewingResultGroup.subjects.map((g) => (
-                <tr key={g.id}>
-                  <td>{g.subject}</td>
-                  <td className="num">{g.marks}/{g.maxMarks}</td>
-                  <td className="num">{g.maxMarks ? Math.round((g.marks / g.maxMarks) * 1000) / 10 : "—"}%</td>
+      {viewingResultGroup && (() => {
+        const totalObtained = viewingResultGroup.subjects.reduce((sum, g) => sum + Number(g.marks || 0), 0);
+        const totalMax = viewingResultGroup.subjects.reduce((sum, g) => sum + Number(g.maxMarks || 0), 0);
+        const overallPct = totalMax ? Math.round((totalObtained / totalMax) * 1000) / 10 : null;
+        return (
+          <Modal title={`Semester ${viewingResultGroup.semester} — ${viewingResultGroup.examType}`} onClose={() => setViewingResultGroup(null)} width={600}>
+            <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+              {student.photoData ? (
+                <img src={student.photoData} alt={student.name} style={{ width: 76, height: 76, borderRadius: 6, objectFit: "cover", border: "1px solid var(--border)" }} />
+              ) : (
+                <div style={{ width: 76, height: 76, borderRadius: 6, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "var(--ink)" }}>{student.name?.[0] || "?"}</div>
+              )}
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <h2 style={{ fontSize: 18 }}>{student.name}</h2>
+                <div style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 3 }}>{student.rollNo ? `Roll No. ${student.rollNo} · ` : ""}{course?.name || "—"}</div>
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 13.5 }}>
+                <SummaryRow label="Father's Name" value={[student.fatherFirstMiddle, student.fatherLastName].filter(Boolean).join(" ")} />
+                <SummaryRow label="Mother's Name" value={[student.motherFirstMiddle, student.motherLastName].filter(Boolean).join(" ")} />
+              </div>
+            </div>
+
+            <table className="ledger">
+              <thead><tr><th>Subject</th><th>Score</th><th>%</th></tr></thead>
+              <tbody>
+                {viewingResultGroup.subjects.map((g) => (
+                  <tr key={g.id}>
+                    <td>{g.subject}</td>
+                    <td className="num">{g.marks}/{g.maxMarks}</td>
+                    <td className="num">{g.maxMarks ? Math.round((g.marks / g.maxMarks) * 1000) / 10 : "—"}%</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td style={{ fontWeight: 700, background: "#FBF9F4" }}>Total</td>
+                  <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{totalObtained}/{totalMax}</td>
+                  <td className="num" style={{ fontWeight: 700, background: "#FBF9F4" }}>{overallPct !== null ? `${overallPct}%` : "—"}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <button className="btn btn-ghost" onClick={() => setViewingResultGroup(null)}>Close</button>
-          </div>
-        </Modal>
-      )}
+              </tfoot>
+            </table>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="btn btn-ghost" onClick={() => setViewingResultGroup(null)}>Close</button>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {showResult && (
         <Modal title="Result Card" onClose={() => setShowResult(false)} width={760}>
