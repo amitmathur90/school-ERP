@@ -130,12 +130,14 @@ const MESSAGE_FIELDS = [
 
 const SUPPORT_TICKET_FIELDS = [
   ["id", "id"], ["studentId", "student_id"], ["subject", "subject"],
-  ["status", "status"], ["createdAt", "created_at"], ["updatedAt", "updated_at"],
+  ["status", "status"], ["studentUnread", "student_unread"], ["adminUnread", "admin_unread"],
+  ["createdAt", "created_at"], ["updatedAt", "updated_at"],
 ];
 
 const SUPPORT_REPLY_FIELDS = [
   ["id", "id"], ["ticketId", "ticket_id"], ["fromRole", "from_role"],
   ["fromName", "from_name"], ["text", "text"], ["date", "date"],
+  ["attachmentName", "attachment_name"], ["attachmentSize", "attachment_size"], ["attachmentMime", "attachment_mime"],
 ];
 
 const EMAIL_FIELDS = [

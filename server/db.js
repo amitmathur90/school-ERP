@@ -305,21 +305,27 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE TABLE IF NOT EXISTS support_tickets (
-  id           TEXT PRIMARY KEY,
-  student_id   TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  subject      TEXT NOT NULL,
-  status       TEXT NOT NULL DEFAULT 'open',
-  created_at   TEXT NOT NULL,
-  updated_at   TEXT NOT NULL
+  id              TEXT PRIMARY KEY,
+  student_id      TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  subject         TEXT NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'open',
+  student_unread  BOOLEAN NOT NULL DEFAULT false,
+  admin_unread    BOOLEAN NOT NULL DEFAULT true,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS support_replies (
-  id           TEXT PRIMARY KEY,
-  ticket_id    TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
-  from_role    TEXT NOT NULL,
-  from_name    TEXT,
-  text         TEXT NOT NULL,
-  date         TEXT NOT NULL
+  id               TEXT PRIMARY KEY,
+  ticket_id        TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+  from_role        TEXT NOT NULL,
+  from_name        TEXT,
+  text             TEXT NOT NULL,
+  date             TEXT NOT NULL,
+  attachment_name  TEXT,
+  attachment_path  TEXT,
+  attachment_size  INTEGER,
+  attachment_mime  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS emails (
@@ -405,6 +411,12 @@ async function init() {
   await ensureColumn("transactions", "gateway_order_id", "TEXT");
   await ensureColumn("fees", "last_reminder_at", "TEXT");
   await ensureColumn("messages", "is_read", "BOOLEAN NOT NULL DEFAULT false");
+  await ensureColumn("support_tickets", "student_unread", "BOOLEAN NOT NULL DEFAULT false");
+  await ensureColumn("support_tickets", "admin_unread", "BOOLEAN NOT NULL DEFAULT true");
+  await ensureColumn("support_replies", "attachment_name", "TEXT");
+  await ensureColumn("support_replies", "attachment_path", "TEXT");
+  await ensureColumn("support_replies", "attachment_size", "INTEGER");
+  await ensureColumn("support_replies", "attachment_mime", "TEXT");
   await ensureColumn("teachers", "employee_id", "TEXT");
   await ensureColumn("teachers", "gender", "TEXT");
   await ensureColumn("teachers", "dob", "TEXT");

@@ -345,6 +345,8 @@ const GlobalStyles = () => (
     }
     .stat-card .stat-value { font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--ink); }
     .stat-card .stat-label { font-size: 12px; color: var(--slate); margin-top: 4px; }
+    .stat-card.clickable { cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
+    .stat-card.clickable:hover { border-color: var(--gold); box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
 
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(27,42,74,0.45);
@@ -476,9 +478,9 @@ function Seal({ status }) {
   return <span className={`seal ${m.cls}`}>{m.icon}{m.label}</span>;
 }
 
-function StatCard({ icon, value, label, accent }) {
+function StatCard({ icon, value, label, accent, onClick }) {
   return (
-    <div className="stat-card">
+    <div className={`stat-card ${onClick ? "clickable" : ""}`} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div className="stat-value">{value}</div>
@@ -1926,6 +1928,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
   const isSuperAdmin = user.role === "super_admin";
   const perms = user.permissions || [];
   const has = (key) => isSuperAdmin || perms.includes(key);
+  const supportUnread = store.supportTickets.filter((t) => t.adminUnread).length;
 
   const allNav = [
     { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
@@ -1936,7 +1939,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
     { key: "fees", label: "Fees", icon: <Wallet size={16} /> },
     { key: "reports", label: "Reports", icon: <FileText size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
-    { key: "support", label: "Support", icon: <LifeBuoy size={16} /> },
+    { key: "support", label: "Support", icon: <LifeBuoy size={16} />, count: supportUnread },
   ];
   const nav = allNav.filter((n) => has(n.key));
   if (isSuperAdmin) nav.push({ key: "settings", label: "Staff Accounts", icon: <Lock size={16} /> });
@@ -1959,10 +1962,10 @@ function AdminPortal({ user, store, actions, onLogout }) {
         <>
           <SectionHeader eyebrow="Dashboard" title="Institution Overview" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
-            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" />
-            <StatCard icon={<Clock size={22} />} value={pendingStudents.length} label="Pending Admissions" accent="var(--warn)" />
-            <StatCard icon={<Users size={22} />} value={teachers.length} label="Faculty Members" />
-            <StatCard icon={<Wallet size={22} />} value={`₹${totalCollected.toLocaleString("en-IN")}`} label="Fees Collected" accent="var(--success)" />
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" onClick={has("students") ? () => setPage("students") : undefined} />
+            <StatCard icon={<Clock size={22} />} value={pendingStudents.length} label="Pending Admissions" accent="var(--warn)" onClick={has("admissions") ? () => setPage("admissions") : undefined} />
+            <StatCard icon={<Users size={22} />} value={teachers.length} label="Faculty Members" onClick={has("teachers") ? () => setPage("teachers") : undefined} />
+            <StatCard icon={<Wallet size={22} />} value={`₹${totalCollected.toLocaleString("en-IN")}`} label="Fees Collected" accent="var(--success)" onClick={has("fees") ? () => setPage("fees") : undefined} />
           </div>
           <div className="card">
             <div className="card-header"><h3 style={{ fontSize: 16 }}>Recent Notices</h3></div>
@@ -1986,7 +1989,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
       {page === "fees" && <FeesManager students={approvedStudents} courses={courses} fees={fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "reports" && <ReportsCenter store={store} />}
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
-      {page === "support" && <SupportCenter role="admin" students={students} actions={actions} />}
+      {page === "support" && <SupportCenter role="admin" students={students} tickets={store.supportTickets} actions={actions} />}
       {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
     </PortalShell>
   );
@@ -2720,31 +2723,22 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
   );
 }
 
-function SupportCenter({ role, students, actions }) {
+const SUPPORT_STATUS_META = {
+  open: { cls: "seal-pending", icon: <Clock size={12} />, label: "Open" },
+  resolved: { cls: "seal-approved", icon: <CheckCircle size={12} />, label: "Resolved" },
+  closed: { cls: "seal-rejected", icon: <XCircle size={12} />, label: "Closed" },
+};
+
+function SupportCenter({ role, students, tickets, actions }) {
   const isAdmin = role === "admin";
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [filter, setFilter] = useState("open");
   const [openingNew, setOpeningNew] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const studentName = (id) => students?.find((s) => s.id === id)?.name || "—";
 
-  const load = async () => {
-    setLoading(true);
-    try { setTickets(await actions.listSupportTickets()); }
-    catch (e) { setErr(e.message || "Could not load support tickets."); }
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-
   const filtered = isAdmin ? tickets.filter((t) => filter === "all" || t.status === filter) : tickets;
   const active = tickets.find((t) => t.id === activeId);
-
-  const upsertTicket = (updated) => setTickets((prev) => {
-    const exists = prev.some((t) => t.id === updated.id);
-    return exists ? prev.map((t) => (t.id === updated.id ? updated : t)) : [updated, ...prev];
-  });
 
   return (
     <>
@@ -2754,7 +2748,7 @@ function SupportCenter({ role, students, actions }) {
       />
       {isAdmin && (
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-          {["open", "resolved", "all"].map((f) => (
+          {["open", "resolved", "closed", "all"].map((f) => (
             <button key={f} className={`tab-btn ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
               {f[0].toUpperCase() + f.slice(1)} {f !== "all" && `(${tickets.filter((t) => t.status === f).length})`}
             </button>
@@ -2763,9 +2757,7 @@ function SupportCenter({ role, students, actions }) {
       )}
       {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
       <div className="card">
-        {loading ? (
-          <div className="card-body" style={{ fontSize: 13, color: "var(--slate)" }}>Loading…</div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="card-body">
             <EmptyState icon={<LifeBuoy size={28} />} title="No tickets" note={isAdmin ? "Student support requests will appear here." : "Need help? Open a new ticket and we'll get back to you."} />
           </div>
@@ -2774,15 +2766,22 @@ function SupportCenter({ role, students, actions }) {
             <table className="ledger">
               <thead><tr>{isAdmin && <th>Student</th>}<th>Subject</th><th>Status</th><th>Last Update</th><th></th></tr></thead>
               <tbody>
-                {filtered.map((t) => (
-                  <tr key={t.id}>
-                    {isAdmin && <td>{studentName(t.studentId)}</td>}
-                    <td style={{ fontWeight: 600 }}>{t.subject}</td>
-                    <td><span className={`seal ${t.status === "open" ? "seal-pending" : "seal-approved"}`}>{t.status === "open" ? <Clock size={12} /> : <CheckCircle size={12} />}{t.status === "open" ? "Open" : "Resolved"}</span></td>
-                    <td style={{ fontSize: 12.5 }}>{fmtDate(t.updatedAt)}</td>
-                    <td><button className="btn btn-ghost btn-sm" onClick={() => setActiveId(t.id)}><Eye size={13} /> Open</button></td>
-                  </tr>
-                ))}
+                {filtered.map((t) => {
+                  const meta = SUPPORT_STATUS_META[t.status] || SUPPORT_STATUS_META.open;
+                  const unread = isAdmin ? t.adminUnread : t.studentUnread;
+                  return (
+                    <tr key={t.id}>
+                      {isAdmin && <td>{studentName(t.studentId)}</td>}
+                      <td style={{ fontWeight: 600 }}>
+                        {unread && <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--danger)", marginRight: 7 }} />}
+                        {t.subject}
+                      </td>
+                      <td><span className={`seal ${meta.cls}`}>{meta.icon}{meta.label}</span></td>
+                      <td style={{ fontSize: 12.5 }}>{fmtDate(t.updatedAt)}</td>
+                      <td><button className="btn btn-ghost btn-sm" onClick={() => setActiveId(t.id)}><Eye size={13} /> Open</button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2792,23 +2791,41 @@ function SupportCenter({ role, students, actions }) {
         <NewTicketModal
           actions={actions}
           onClose={() => setOpeningNew(false)}
-          onCreated={(t) => { upsertTicket(t); setOpeningNew(false); setActiveId(t.id); }}
+          onCreated={(t) => { setOpeningNew(false); setActiveId(t.id); }}
         />
       )}
       {active && (
         <TicketThreadModal
           ticket={active} role={role} actions={actions}
           onClose={() => setActiveId(null)}
-          onUpdated={upsertTicket}
         />
       )}
     </>
   );
 }
 
+function AttachFileButton({ file, onChange }) {
+  const inputRef = useRef(null);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/gif,application/pdf" style={{ display: "none" }}
+        onChange={(e) => onChange(e.target.files[0] || null)} />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()}>
+        <UploadCloud size={13} /> {file ? "Change File" : "Attach File"}
+      </button>
+      {file && (
+        <span style={{ fontSize: 12, color: "var(--slate)" }}>
+          {file.name} <button type="button" onClick={() => onChange(null)} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 12 }}>Remove</button>
+        </span>
+      )}
+    </div>
+  );
+}
+
 function NewTicketModal({ actions, onClose, onCreated }) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [file, setFile] = useState(null);
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -2817,7 +2834,7 @@ function NewTicketModal({ actions, onClose, onCreated }) {
     if (!subject.trim() || !message.trim()) { setErr("Please fill in both the subject and message."); return; }
     setSubmitting(true);
     try {
-      const t = await actions.createSupportTicket({ subject: subject.trim(), message: message.trim() });
+      const t = await actions.createSupportTicket({ subject: subject.trim(), message: message.trim(), file });
       onCreated(t);
     } catch (e) {
       setErr(e.message || "Could not open ticket. Please try again.");
@@ -2830,6 +2847,7 @@ function NewTicketModal({ actions, onClose, onCreated }) {
       {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
       <Field label="Subject" inputProps={{ value: subject, onChange: (e) => setSubject(e.target.value), placeholder: "e.g. Issue with fee payment" }} />
       <Field label="Message" as="textarea" inputProps={{ value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Describe your issue in detail…", rows: 5 }} />
+      <AttachFileButton file={file} onChange={setFile} />
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
         <button className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
         <button className="btn btn-primary" onClick={submit} disabled={submitting}>{submitting ? "Opening…" : "Open Ticket"}</button>
@@ -2838,40 +2856,42 @@ function NewTicketModal({ actions, onClose, onCreated }) {
   );
 }
 
-function TicketThreadModal({ ticket, role, actions, onClose, onUpdated }) {
+function TicketThreadModal({ ticket: initialTicket, role, actions, onClose }) {
   const isAdmin = role === "admin";
+  const [ticket, setTicket] = useState(initialTicket);
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
+  const [file, setFile] = useState(null);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
 
   const load = async () => {
     setLoading(true);
-    try { setReplies(await actions.listSupportReplies(ticket.id)); }
+    try { setReplies(await actions.listSupportReplies(initialTicket.id)); }
     catch (e) { setErr(e.message || "Could not load this conversation."); }
     setLoading(false);
   };
-  useEffect(() => { load(); }, [ticket.id]);
+  useEffect(() => { load(); }, [initialTicket.id]);
 
   const send = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() && !file) return;
     setSending(true); setErr("");
     try {
-      const { ticket: updated } = await actions.replySupportTicket(ticket.id, text.trim());
-      setText("");
+      const updated = await actions.replySupportTicket(ticket.id, { text: text.trim(), file });
+      setText(""); setFile(null);
+      setTicket(updated);
       await load();
-      onUpdated(updated);
     } catch (e) {
       setErr(e.message || "Could not send reply. Please try again.");
     }
     setSending(false);
   };
 
-  const toggleStatus = async () => {
+  const changeStatus = async (status) => {
     try {
-      const updated = await actions.updateSupportTicketStatus(ticket.id, ticket.status === "open" ? "resolved" : "open");
-      onUpdated(updated);
+      const updated = await actions.updateSupportTicketStatus(ticket.id, status);
+      setTicket(updated);
     } catch (e) {
       setErr(e.message || "Could not update ticket status.");
     }
@@ -2880,10 +2900,13 @@ function TicketThreadModal({ ticket, role, actions, onClose, onUpdated }) {
   return (
     <Modal title={ticket.subject} onClose={onClose} width={640}>
       {isAdmin && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button className={`btn btn-sm ${ticket.status === "open" ? "btn-success" : "btn-ghost"}`} onClick={toggleStatus}>
-            {ticket.status === "open" ? <><CheckCircle size={13} /> Mark Resolved</> : "Reopen"}
-          </button>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: "var(--slate)", marginBottom: 0 }}>Status</label>
+          <select value={ticket.status} onChange={(e) => changeStatus(e.target.value)} style={{ width: "auto" }}>
+            <option value="open">Open</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
         </div>
       )}
       {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 12 }}>{err}</div>}
@@ -2895,14 +2918,21 @@ function TicketThreadModal({ ticket, role, actions, onClose, onUpdated }) {
             border: "1px solid var(--border)", padding: "8px 12px", borderRadius: 8,
           }}>
             <div style={{ fontSize: 11, color: "var(--slate)", marginBottom: 3 }}>{r.fromName || (r.fromRole === "student" ? "Student" : "Administrator")} &middot; {fmtDate(r.date)}</div>
-            <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.text}</div>
+            {r.text && <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.text}</div>}
+            {r.attachmentName && (
+              <a href={`${API_BASE}/support/replies/${r.id}/file?token=${encodeURIComponent(getAuthToken() || "")}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: r.text ? 6 : 0, fontSize: 12.5, color: "var(--maroon)", fontWeight: 600 }}>
+                <UploadCloud size={12} /> {r.attachmentName}
+              </a>
+            )}
           </div>
         ))}
       </div>
       <Field label="Reply" as="textarea" inputProps={{ value: text, onChange: (e) => setText(e.target.value), placeholder: "Type your reply…", rows: 3 }} />
+      <AttachFileButton file={file} onChange={setFile} />
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button className="btn btn-ghost" onClick={onClose}>Close</button>
-        <button className="btn btn-primary" onClick={send} disabled={sending || !text.trim()}>{sending ? "Sending…" : "Send Reply"}</button>
+        <button className="btn btn-primary" onClick={send} disabled={sending || (!text.trim() && !file)}>{sending ? "Sending…" : "Send Reply"}</button>
       </div>
     </Modal>
   );
@@ -3944,8 +3974,8 @@ function TeacherPortal({ user, store, actions, onLogout }) {
           <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
             <StatCard icon={<BookOpen size={22} />} value={teacher?.subject || "—"} label="Subject" />
-            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Total Students" />
-            <StatCard icon={<Bell size={22} />} value={store.notices.length} label="Notices Posted" />
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Total Students" onClick={() => setPage("students")} />
+            <StatCard icon={<Bell size={22} />} value={store.notices.length} label="Notices Posted" onClick={() => setPage("notices")} />
           </div>
           <div className="card"><div className="card-body">
             <h3 style={{ fontSize: 15, marginBottom: 8 }}>Profile</h3>
@@ -4125,9 +4155,9 @@ function HRPortal({ user, store, actions, onLogout }) {
         <>
           <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<Users size={22} />} value={store.teachers.length} label="Staff Members" />
-            <StatCard icon={<Clock size={22} />} value={store.teachers.filter((t) => t.status === "active").length} label="Active" accent="var(--success)" />
-            <StatCard icon={<Bell size={22} />} value={store.teachers.filter((t) => t.status === "inactive").length} label="Inactive" accent="var(--slate)" />
+            <StatCard icon={<Users size={22} />} value={store.teachers.length} label="Staff Members" onClick={() => setPage("records")} />
+            <StatCard icon={<Clock size={22} />} value={store.teachers.filter((t) => t.status === "active").length} label="Active" accent="var(--success)" onClick={() => setPage("records")} />
+            <StatCard icon={<Bell size={22} />} value={store.teachers.filter((t) => t.status === "inactive").length} label="Inactive" accent="var(--slate)" onClick={() => setPage("records")} />
           </div>
           <div className="card" style={{ background: "#FBF9F4" }}>
             <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>
@@ -4163,9 +4193,9 @@ function AccountsPortal({ user, store, actions, onLogout }) {
         <>
           <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" />
-            <StatCard icon={<Wallet size={22} />} value={`₹${totalCollected.toLocaleString("en-IN")}`} label="Fees Collected" accent="var(--success)" />
-            <StatCard icon={<Clock size={22} />} value={`₹${totalDue.toLocaleString("en-IN")}`} label="Outstanding Balance" accent="var(--danger)" />
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" onClick={() => setPage("fees")} />
+            <StatCard icon={<Wallet size={22} />} value={`₹${totalCollected.toLocaleString("en-IN")}`} label="Fees Collected" accent="var(--success)" onClick={() => setPage("fees")} />
+            <StatCard icon={<Clock size={22} />} value={`₹${totalDue.toLocaleString("en-IN")}`} label="Outstanding Balance" accent="var(--danger)" onClick={() => setPage("fees")} />
           </div>
         </>
       )}
@@ -4194,8 +4224,8 @@ function ExamInchargePortal({ user, store, actions, onLogout }) {
         <>
           <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" />
-            <StatCard icon={<Award size={22} />} value={Object.values(store.grades).flat().length} label="Grade Entries Recorded" />
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label="Enrolled Students" onClick={() => setPage("grades")} />
+            <StatCard icon={<Award size={22} />} value={Object.values(store.grades).flat().length} label="Grade Entries Recorded" onClick={() => setPage("grades")} />
           </div>
           <div className="card" style={{ background: "#FBF9F4" }}>
             <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>
@@ -4234,8 +4264,8 @@ function HODPortal({ user, store, actions, onLogout }) {
         <>
           <SectionHeader eyebrow={`${user.department || "Department"} · Dashboard`} title={`Welcome, ${user.name}`} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label={`Students in ${user.department || "your department"}`} />
-            <StatCard icon={<Users size={22} />} value={deptTeachers.length} label="Faculty in your department" />
+            <StatCard icon={<GraduationCap size={22} />} value={approvedStudents.length} label={`Students in ${user.department || "your department"}`} onClick={() => setPage("students")} />
+            <StatCard icon={<Users size={22} />} value={deptTeachers.length} label="Faculty in your department" onClick={() => setPage("faculty")} />
           </div>
           <p style={{ fontSize: 12, color: "var(--slate)" }}>
             You're viewing only students enrolled in courses under the <b>{user.department || "—"}</b> department, and only faculty assigned to it — enforced by the server, not just hidden in this view.
@@ -4482,6 +4512,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const myTransactions = store.transactions.filter((t) => t.studentId === student.id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const myMessages = store.messages.filter((m) => m.toStudentId === student.id);
   const unreadCount = myMessages.filter((m) => !m.isRead).length;
+  const mySupportTickets = store.supportTickets.filter((t) => t.studentId === student.id);
+  const supportUnread = mySupportTickets.filter((t) => t.studentUnread).length;
 
   useEffect(() => {
     if (page === "inbox" && unreadCount > 0) actions.markMessagesRead(student.id).catch(() => {});
@@ -4498,7 +4530,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
     { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
     { key: "inbox", label: "Notifications", icon: <Bell size={16} />, count: unreadCount },
     { key: "notices", label: "Notice Board", icon: <Bell size={16} /> },
-    { key: "support", label: "Support", icon: <LifeBuoy size={16} /> },
+    { key: "support", label: "Support", icon: <LifeBuoy size={16} />, count: supportUnread },
   ];
 
   return (
@@ -4521,9 +4553,9 @@ function StudentPortal({ user, store, actions, onLogout }) {
             </div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<BookOpen size={22} />} value={course?.name || "—"} label="Programme" />
-            <StatCard icon={<ClipboardCheck size={22} />} value={pct === null ? "—" : `${pct}%`} label="Attendance" accent={pct !== null && pct < 75 ? "var(--danger)" : "var(--success)"} />
-            <StatCard icon={<Wallet size={22} />} value={fee ? `₹${(fee.totalFee - fee.paid).toLocaleString("en-IN")}` : "—"} label="Fee Balance" />
+            <StatCard icon={<BookOpen size={22} />} value={course?.name || "—"} label="Programme" onClick={() => setPage("courses")} />
+            <StatCard icon={<ClipboardCheck size={22} />} value={pct === null ? "—" : `${pct}%`} label="Attendance" accent={pct !== null && pct < 75 ? "var(--danger)" : "var(--success)"} onClick={() => setPage("attendance")} />
+            <StatCard icon={<Wallet size={22} />} value={fee ? `₹${(fee.totalFee - fee.paid).toLocaleString("en-IN")}` : "—"} label="Fee Balance" onClick={() => setPage("fees")} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div className="card"><div className="card-header"><h3 style={{ fontSize: 15 }}>Latest Notices</h3></div>
@@ -4760,7 +4792,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
         </>
       )}
 
-      {page === "support" && <SupportCenter role="student" actions={actions} />}
+      {page === "support" && <SupportCenter role="student" tickets={mySupportTickets} actions={actions} />}
     </PortalShell>
   );
 }
@@ -4915,7 +4947,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
   const [view, setView] = useState("login");
-  const [store, setStore] = useState({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {} });
+  const [store, setStore] = useState({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [] });
 
   const groupByStudent = (rows, mapFn) => {
     const out = {};
@@ -4925,11 +4957,11 @@ export default function App() {
 
   const loadAll = async () => {
     try {
-      const [students, teachers, courses, notices, attendanceRows, gradeRows, feeRows, transactions, messages, emails, academicRows, documentRows] = await Promise.all([
+      const [students, teachers, courses, notices, attendanceRows, gradeRows, feeRows, transactions, messages, emails, academicRows, documentRows, supportTickets] = await Promise.all([
         api.get("/students"), api.get("/teachers"), api.get("/courses"), api.get("/notices"),
         api.get("/attendance"), api.get("/grades"), api.get("/fees"),
         api.get("/transactions"), api.get("/messages"), api.get("/emails"),
-        api.get("/academic-details"), api.get("/documents"),
+        api.get("/academic-details"), api.get("/documents"), api.get("/support/tickets"),
       ]);
       const attendance = groupByStudent(attendanceRows, (r) => ({ date: r.date, subject: r.subject, status: r.status }));
       const grades = groupByStudent(gradeRows);
@@ -4938,7 +4970,7 @@ export default function App() {
       const fees = {};
       feeRows.forEach((f) => { fees[f.studentId] = { totalFee: f.totalFee, paid: f.paid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
       const paymentsConfig = await api.get("/payments/config").catch(() => ({ provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }));
-      setStore({ students, teachers, courses, notices, attendance, grades, fees, transactions, messages, emails, paymentsConfig, academicDetails, documents });
+      setStore({ students, teachers, courses, notices, attendance, grades, fees, transactions, messages, emails, paymentsConfig, academicDetails, documents, supportTickets });
       setLoadError("");
     } catch (e) {
       setLoadError(e.message || "Could not load data from the server.");
@@ -5013,7 +5045,7 @@ export default function App() {
   const logout = () => {
     setAuthToken(null);
     setUser(null);
-    setStore({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {} });
+    setStore({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [] });
     setView("login");
   };
 
@@ -5276,11 +5308,33 @@ export default function App() {
     },
 
     // ---- Support tickets ----
-    listSupportTickets: async () => api.get("/support/tickets"),
-    createSupportTicket: async ({ subject, message }) => api.post("/support/tickets", { subject, message }),
-    listSupportReplies: async (ticketId) => api.get(`/support/tickets/${ticketId}/replies`),
-    replySupportTicket: async (ticketId, text) => api.post(`/support/tickets/${ticketId}/replies`, { text }),
-    updateSupportTicketStatus: async (ticketId, status) => api.patch(`/support/tickets/${ticketId}`, { status }),
+    createSupportTicket: async ({ subject, message, file }) => {
+      const formData = new FormData();
+      formData.append("subject", subject);
+      formData.append("message", message);
+      if (file) formData.append("file", file);
+      const created = await api.upload("/support/tickets", formData);
+      setStore((prev) => ({ ...prev, supportTickets: [created, ...prev.supportTickets] }));
+      return created;
+    },
+    listSupportReplies: async (ticketId) => {
+      const { ticket, replies } = await api.get(`/support/tickets/${ticketId}/replies`);
+      setStore((prev) => ({ ...prev, supportTickets: prev.supportTickets.map((t) => (t.id === ticket.id ? ticket : t)) }));
+      return replies;
+    },
+    replySupportTicket: async (ticketId, { text, file }) => {
+      const formData = new FormData();
+      formData.append("text", text || "");
+      if (file) formData.append("file", file);
+      const { ticket: updated } = await api.upload(`/support/tickets/${ticketId}/replies`, formData);
+      setStore((prev) => ({ ...prev, supportTickets: prev.supportTickets.map((t) => (t.id === updated.id ? updated : t)) }));
+      return updated;
+    },
+    updateSupportTicketStatus: async (ticketId, status) => {
+      const updated = await api.patch(`/support/tickets/${ticketId}`, { status });
+      setStore((prev) => ({ ...prev, supportTickets: prev.supportTickets.map((t) => (t.id === updated.id ? updated : t)) }));
+      return updated;
+    },
 
     markMessagesRead: async (studentId) => {
       await api.patch("/messages/mark-all-read", { studentId });
