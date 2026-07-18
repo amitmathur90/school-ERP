@@ -4484,7 +4484,7 @@ function GradesEntry({ courses, students, grades, actions }) {
   const [studentId, setStudentId] = useState(roster[0]?.id || "");
   const [studentsForCourse, setStudentsForCourse] = useState(courseId);
   const [creating, setCreating] = useState(false);
-  const [examFilter, setExamFilter] = useState("All");
+  const [viewingGroup, setViewingGroup] = useState(null);
 
   if (courseId !== studentsForCourse) {
     setStudentsForCourse(courseId);
@@ -4493,8 +4493,14 @@ function GradesEntry({ courses, students, grades, actions }) {
 
   const selectedStudent = roster.find((s) => s.id === studentId);
   const studentGrades = grades[studentId] || [];
-  const examTypesPresent = Array.from(new Set(studentGrades.map((g) => g.examType))).sort();
-  const visibleGrades = examFilter === "All" ? studentGrades : studentGrades.filter((g) => g.examType === examFilter);
+  const gradeGroups = Object.values(
+    studentGrades.reduce((acc, g) => {
+      const key = `${g.semester}__${g.examType}`;
+      (acc[key] ||= { key, semester: g.semester, examType: g.examType, subjects: [] }).subjects.push(g);
+      return acc;
+    }, {})
+  ).sort((a, b) => a.semester - b.semester || EXAM_TYPES.indexOf(a.examType) - EXAM_TYPES.indexOf(b.examType));
+  const activeGroup = viewingGroup ? gradeGroups.find((g) => g.key === viewingGroup) : null;
 
   const saveResult = (newRows) => {
     newRows.forEach((row) => actions.addGrade(studentId, row));
@@ -4523,28 +4529,18 @@ function GradesEntry({ courses, students, grades, actions }) {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-          <h3 style={{ fontSize: 15 }}>Grade History {selectedStudent ? `— ${selectedStudent.name}` : ""}</h3>
-          {examTypesPresent.length > 1 && (
-            <select value={examFilter} onChange={(e) => setExamFilter(e.target.value)} style={{ width: 200 }}>
-              <option value="All">All Exam Types</option>
-              {examTypesPresent.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          )}
-        </div>
-        {visibleGrades.length === 0 ? (
+        <div className="card-header"><h3 style={{ fontSize: 15 }}>Grade History {selectedStudent ? `— ${selectedStudent.name}` : ""}</h3></div>
+        {gradeGroups.length === 0 ? (
           <div className="card-body"><EmptyState icon={<Award size={28} />} title="No grades recorded" note="Click Create New Result above to add the first one." /></div>
         ) : (
           <table className="ledger">
-            <thead><tr><th>Semester</th><th>Subject</th><th>Exam</th><th>Score</th><th></th></tr></thead>
+            <thead><tr><th>Semester</th><th>Exam</th><th></th></tr></thead>
             <tbody>
-              {visibleGrades.map((g) => (
-                <tr key={g.id}>
-                  <td className="num">Sem {g.semester}</td>
-                  <td>{g.subject}</td>
-                  <td>{g.examType}</td>
-                  <td className="num">{g.marks}/{g.maxMarks}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => actions.removeGrade(studentId, g.id)}><Trash2 size={13} /></button></td>
+              {gradeGroups.map((grp) => (
+                <tr key={grp.key}>
+                  <td className="num">Semester {grp.semester}</td>
+                  <td>{grp.examType}</td>
+                  <td><button className="btn btn-outline btn-sm" onClick={() => setViewingGroup(grp.key)}>View Result</button></td>
                 </tr>
               ))}
             </tbody>
@@ -4554,6 +4550,28 @@ function GradesEntry({ courses, students, grades, actions }) {
 
       {creating && selectedStudent && (
         <CreateResultModal studentName={selectedStudent.name} onClose={() => setCreating(false)} onSave={saveResult} />
+      )}
+
+      {activeGroup && (
+        <Modal title={`Semester ${activeGroup.semester} — ${activeGroup.examType}`} onClose={() => setViewingGroup(null)} width={600}>
+          <table className="ledger">
+            <thead><tr><th>Subject</th><th>Marks Obtained</th><th>Max Marks</th><th>%</th><th></th></tr></thead>
+            <tbody>
+              {activeGroup.subjects.map((g) => (
+                <tr key={g.id}>
+                  <td>{g.subject}</td>
+                  <td className="num">{g.marks}</td>
+                  <td className="num">{g.maxMarks}</td>
+                  <td className="num">{g.maxMarks ? Math.round((g.marks / g.maxMarks) * 1000) / 10 : "—"}%</td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={() => actions.removeGrade(studentId, g.id)}><Trash2 size={13} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-ghost" onClick={() => setViewingGroup(null)}>Close</button>
+          </div>
+        </Modal>
       )}
     </>
   );
