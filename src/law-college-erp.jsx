@@ -1148,6 +1148,10 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [fileErr, setFileErr] = useState({ photo: "", signature: "" });
+  // Required-field red highlighting only appears once the user has tried to
+  // save/submit this step (not live while first filling it in) — resets per step.
+  const [attempted, setAttempted] = useState(false);
+  useEffect(() => { setAttempted(false); }, [step]);
 
   const set = (k) => (e) => { setF({ ...f, [k]: e.target.value }); setDirty(true); setJustSaved(false); };
   const setV = (k, v) => { setF({ ...f, [k]: v }); setDirty(true); setJustSaved(false); };
@@ -1308,6 +1312,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const doSave = async () => {
+    setAttempted(true);
     const e = validateStep(step);
     if (e) { setErr(e); setJustSaved(false); return false; }
     setErr(""); setSaving(true);
@@ -1340,6 +1345,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const goBack = () => { setErr(""); setNavErr(""); setStep((s) => Math.max(1, s - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const submitFinal = async () => {
+    setAttempted(true);
     const e = validateStep(5);
     if (e) { setErr(e); return; }
     setErr(""); setSaving(true);
@@ -1364,6 +1370,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const missingDocs = missingAcademicDocuments();
 
   const fe = {};
+  if (attempted) {
   if (step === 1) {
     if (!f.firstName.trim()) fe.firstName = "Required";
     if (!f.lastName.trim()) fe.lastName = "Required";
@@ -1421,6 +1428,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     else if (!/^\d{4}$/.test(f.lastExamYear.trim())) fe.lastExamYear = "Enter a valid 4-digit year";
     if (!f.lastExamPercentage.trim()) fe.lastExamPercentage = "Required";
     if (!f.courseId) fe.courseId = "Please select a course below";
+  }
   }
 
   return (
@@ -1711,7 +1719,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 </div>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={addDocumentRow}><Plus size={13} /> Add More Details</button>
-              {missingDocs.length > 0 && (
+              {attempted && missingDocs.length > 0 && (
                 <div style={{ fontSize: 11.5, color: "var(--danger)", marginTop: 8 }}>
                   Missing a matching document for: {missingDocs.map((r) => r.name).join(", ")}.
                 </div>
@@ -1744,7 +1752,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               </div>
 
               <div className="eyebrow" style={{ marginBottom: 10 }}>घोषणा (Declaration)</div>
-              <div className="card" style={{ marginBottom: 10, border: !agreeTerms ? "1px solid var(--danger)" : undefined }}>
+              <div className="card" style={{ marginBottom: 10, border: attempted && !agreeTerms ? "1px solid var(--danger)" : undefined }}>
                 <div className="card-body" style={{ fontSize: 13, lineHeight: 1.7 }}>
                   <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
                     <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} style={{ width: "auto", marginTop: 3 }} />
@@ -1753,7 +1761,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                       <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I have read and accept the college's admission policy and rules, will abide by them, and declare that all information in this application is true and correct.</span>
                     </span>
                   </label>
-                  {!agreeTerms && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 8 }}>You must accept the terms and conditions before submitting.</div>}
+                  {attempted && !agreeTerms && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 8 }}>You must accept the terms and conditions before submitting.</div>}
                 </div>
               </div>
             </>
