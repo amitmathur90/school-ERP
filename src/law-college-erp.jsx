@@ -1924,6 +1924,7 @@ function SectionHeader({ eyebrow, title, action }) {
 
 function AdminPortal({ user, store, actions, onLogout }) {
   const [page, setPage] = useState("overview");
+  const [viewingNotice, setViewingNotice] = useState(null);
   const { students, teachers, courses, notices, fees } = store;
   const isSuperAdmin = user.role === "super_admin";
   const perms = user.permissions || [];
@@ -1972,7 +1973,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
             <div className="card-body">
               {notices.length === 0 ? <EmptyState icon={<Bell size={30} />} title="No notices yet" note="Post one from the Notices tab." /> :
                 notices.slice(0, 5).map((n) => (
-                  <div key={n.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                  <div key={n.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setViewingNotice(n)}>
                     <div style={{ fontWeight: 600, fontSize: 13.5 }}>{n.title}</div>
                     <div style={{ fontSize: 12, color: "var(--slate)" }}>{fmtDate(n.date)} &middot; {n.postedByName}</div>
                   </div>
@@ -1991,6 +1992,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
       {page === "support" && <SupportCenter role="admin" students={students} tickets={store.supportTickets} actions={actions} />}
       {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
+      {viewingNotice && <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />}
     </PortalShell>
   );
 }
@@ -3427,9 +3429,25 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig, t
   );
 }
 
+function NoticeDetailModal({ notice, onClose }) {
+  return (
+    <Modal title="Notice" onClose={onClose} width={560}>
+      <h3 style={{ fontSize: 17, marginBottom: 6 }}>{notice.title}</h3>
+      <div style={{ fontSize: 11.5, color: "var(--slate)", marginBottom: 14 }}>
+        {fmtDate(notice.date)} &middot; <span className={`badge-role badge-${notice.postedByRole === "admin" ? "admin" : "teacher"}`}>{notice.postedByRole === "admin" ? "Administrator" : "Faculty"}</span> {notice.postedByName}
+      </div>
+      <div style={{ fontSize: 14, color: "var(--charcoal)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{notice.content}</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+        <button className="btn btn-ghost" onClick={onClose}>Close</button>
+      </div>
+    </Modal>
+  );
+}
+
 function NoticesBoard({ notices, actions, poster, canDelete }) {
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ title: "", content: "" });
+  const [viewing, setViewing] = useState(null);
 
   const submit = () => {
     if (!f.title || !f.content) return;
@@ -3446,18 +3464,17 @@ function NoticesBoard({ notices, actions, poster, canDelete }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {notices.map((n) => (
-            <div className="card" key={n.id}>
+            <div className="card" key={n.id} style={{ cursor: "pointer" }} onClick={() => setViewing(n)}>
               <div className="card-body">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <h3 style={{ fontSize: 15.5 }}>{n.title}</h3>
-                    <div style={{ fontSize: 11.5, color: "var(--slate)", margin: "4px 0 10px" }}>
+                    <div style={{ fontSize: 11.5, color: "var(--slate)", margin: "4px 0 0" }}>
                       {fmtDate(n.date)} &middot; <span className={`badge-role badge-${n.postedByRole === "admin" ? "admin" : "teacher"}`}>{n.postedByRole === "admin" ? "Administrator" : "Faculty"}</span> {n.postedByName}
                     </div>
                   </div>
-                  {canDelete && <button className="btn btn-ghost btn-sm" onClick={() => actions.removeNotice(n.id)}><Trash2 size={13} /></button>}
+                  {canDelete && <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); actions.removeNotice(n.id); }}><Trash2 size={13} /></button>}
                 </div>
-                <div style={{ fontSize: 13.5, color: "var(--charcoal)", lineHeight: 1.6 }}>{n.content}</div>
               </div>
             </div>
           ))}
@@ -3473,6 +3490,7 @@ function NoticesBoard({ notices, actions, poster, canDelete }) {
           </div>
         </Modal>
       )}
+      {viewing && <NoticeDetailModal notice={viewing} onClose={() => setViewing(null)} />}
     </>
   );
 }
@@ -4462,6 +4480,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const [showResult, setShowResult] = useState(false);
   const [payingOnline, setPayingOnline] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState(null);
+  const [viewingNotice, setViewingNotice] = useState(null);
   const student = store.students.find((s) => s.id === user.id);
 
   if (!student) return null;
@@ -4562,7 +4581,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
               <div className="card-body">
                 {store.notices.length === 0 ? <EmptyState icon={<Bell size={28} />} title="No notices" note="Check back later." /> :
                   store.notices.slice(0, 4).map((n) => (
-                    <div key={n.id} style={{ padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div key={n.id} style={{ padding: "9px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setViewingNotice(n)}>
                       <div style={{ fontWeight: 600, fontSize: 13.5 }}>{n.title}</div>
                       <div style={{ fontSize: 11.5, color: "var(--slate)" }}>{fmtDate(n.date)}</div>
                     </div>
@@ -4573,7 +4592,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
               <div className="card-body">
                 {myMessages.length === 0 ? <EmptyState icon={<Bell size={28} />} title="No notifications" note="Messages from faculty or admin appear here." /> :
                   myMessages.slice(0, 4).map((m) => (
-                    <div key={m.id} style={{ padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                    <div key={m.id} style={{ padding: "9px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setPage("inbox")}>
                       <div style={{ fontWeight: 600, fontSize: 13.5 }}>{m.text}</div>
                       <div style={{ fontSize: 11.5, color: "var(--slate)" }}>{fmtDate(m.date)} &middot; {m.fromName}</div>
                     </div>
@@ -4781,11 +4800,12 @@ function StudentPortal({ user, store, actions, onLogout }) {
           {store.notices.length === 0 ? <div className="card"><div className="card-body"><EmptyState icon={<Bell size={28} />} title="No notices" note="Check back later." /></div></div> : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {store.notices.map((n) => (
-                <div className="card" key={n.id}><div className="card-body">
-                  <h3 style={{ fontSize: 15 }}>{n.title}</h3>
-                  <div style={{ fontSize: 11.5, color: "var(--slate)", margin: "4px 0 8px" }}>{fmtDate(n.date)} &middot; {n.postedByName}</div>
-                  <div style={{ fontSize: 13.5, lineHeight: 1.6 }}>{n.content}</div>
-                </div></div>
+                <div className="card" key={n.id} style={{ cursor: "pointer" }} onClick={() => setViewingNotice(n)}>
+                  <div className="card-body">
+                    <h3 style={{ fontSize: 15 }}>{n.title}</h3>
+                    <div style={{ fontSize: 11.5, color: "var(--slate)", margin: "4px 0 0" }}>{fmtDate(n.date)} &middot; {n.postedByName}</div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -4793,6 +4813,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
       )}
 
       {page === "support" && <SupportCenter role="student" tickets={mySupportTickets} actions={actions} />}
+      {viewingNotice && <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />}
     </PortalShell>
   );
 }
