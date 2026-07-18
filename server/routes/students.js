@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { rowToCamel, camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
-const { composeRegistrationEmail, composeTempPasswordEmail } = require("../emailTemplates");
+const { composeRegistrationEmail, composeTempPasswordEmail, composeRejectionEmail } = require("../emailTemplates");
 const { sendMail } = require("../mailer");
 const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
@@ -145,7 +145,16 @@ router.patch("/:id/reject", authenticate, authorizeRoles("super_admin", "admin")
   const existing = await db.get("SELECT id FROM students WHERE id = ?", [id]);
   if (!existing) return res.status(404).json({ error: "Student not found." });
   await db.run("UPDATE students SET status = 'rejected', reject_reason = ? WHERE id = ?", [reason || "", id]);
-  res.json(await getStudent(id));
+
+  const student = await getStudent(id);
+  const { subject, body } = composeRejectionEmail(student, reason);
+  await db.run(
+    "INSERT INTO emails (id, to_email, subject, body, date) VALUES (?, ?, ?, ?, ?)",
+    [uid("mail"), student.email, subject, body, new Date().toISOString()]
+  );
+  sendMail({ to: student.email, subject, text: body });
+
+  res.json(student);
 });
 
 // PATCH /api/students/:id/reset-password — admin generates a new temporary

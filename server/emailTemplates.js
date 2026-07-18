@@ -93,4 +93,20 @@ ${EMAIL_FOOTER}`,
   };
 }
 
-module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail };
+function composeRejectionEmail(student, reason) {
+  return {
+    subject: `Update on Your Admission Application — ${COLLEGE_NAME}`,
+    body:
+`Dear ${student.name},
+
+Thank you for your interest in ${COLLEGE_NAME}. After reviewing your application, we regret to inform you that we are unable to offer you admission at this time.
+
+Reason: ${reason && reason.trim() ? reason.trim() : "Not specified by the admissions office."}
+
+If you have any questions about this decision or would like to discuss your application further, please reach out to us using the contact details below.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
+module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail, composeRejectionEmail };
