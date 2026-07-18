@@ -304,6 +304,24 @@ CREATE TABLE IF NOT EXISTS messages (
   is_read         BOOLEAN NOT NULL DEFAULT false
 );
 
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id           TEXT PRIMARY KEY,
+  student_id   TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  subject      TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'open',
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS support_replies (
+  id           TEXT PRIMARY KEY,
+  ticket_id    TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+  from_role    TEXT NOT NULL,
+  from_name    TEXT,
+  text         TEXT NOT NULL,
+  date         TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS emails (
   id       TEXT PRIMARY KEY,
   to_email TEXT NOT NULL,
@@ -354,6 +372,8 @@ const INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS idx_transactions_student ON transactions(student_id);
   CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
   CREATE INDEX IF NOT EXISTS idx_messages_student ON messages(to_student_id);
+  CREATE INDEX IF NOT EXISTS idx_support_tickets_student ON support_tickets(student_id);
+  CREATE INDEX IF NOT EXISTS idx_support_replies_ticket ON support_replies(ticket_id);
   CREATE INDEX IF NOT EXISTS idx_emails_to ON emails(to_email);
   CREATE INDEX IF NOT EXISTS idx_academic_student ON academic_details(student_id);
   CREATE INDEX IF NOT EXISTS idx_documents_student ON documents(student_id);

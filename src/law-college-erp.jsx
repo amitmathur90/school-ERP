@@ -5,7 +5,7 @@ import {
   Scale, LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
   Wallet, LogOut, CheckCircle, XCircle, Clock, Search, Plus,
   Trash2, ChevronRight, User, Lock, FileText,
-  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu
+  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu, LifeBuoy
 } from "lucide-react";
 
 /**
@@ -1936,6 +1936,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
     { key: "fees", label: "Fees", icon: <Wallet size={16} /> },
     { key: "reports", label: "Reports", icon: <FileText size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
+    { key: "support", label: "Support", icon: <LifeBuoy size={16} /> },
   ];
   const nav = allNav.filter((n) => has(n.key));
   if (isSuperAdmin) nav.push({ key: "settings", label: "Staff Accounts", icon: <Lock size={16} /> });
@@ -1985,16 +1986,17 @@ function AdminPortal({ user, store, actions, onLogout }) {
       {page === "fees" && <FeesManager students={approvedStudents} courses={courses} fees={fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "reports" && <ReportsCenter store={store} />}
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
+      {page === "support" && <SupportCenter role="admin" students={students} actions={actions} />}
       {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
     </PortalShell>
   );
 }
 
-const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "attendance", "grades", "hr", "settings"];
+const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "support", "attendance", "grades", "hr", "settings"];
 const MODULE_LABELS = {
   overview: "Overview", admissions: "Admissions Registry", students: "Students",
   teachers: "Faculty & Staff", courses: "Courses", fees: "Fees", reports: "Reports",
-  notices: "Notices", attendance: "Attendance", grades: "Grades", hr: "HR", settings: "Staff Accounts (Super Admin only)",
+  notices: "Notices", support: "Support", attendance: "Attendance", grades: "Grades", hr: "HR", settings: "Staff Accounts (Super Admin only)",
 };
 
 function AdminAccountsManager({ actions }) {
@@ -2715,6 +2717,194 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
         />
       )}
     </>
+  );
+}
+
+function SupportCenter({ role, students, actions }) {
+  const isAdmin = role === "admin";
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [filter, setFilter] = useState("open");
+  const [openingNew, setOpeningNew] = useState(false);
+  const [activeId, setActiveId] = useState(null);
+  const studentName = (id) => students?.find((s) => s.id === id)?.name || "—";
+
+  const load = async () => {
+    setLoading(true);
+    try { setTickets(await actions.listSupportTickets()); }
+    catch (e) { setErr(e.message || "Could not load support tickets."); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const filtered = isAdmin ? tickets.filter((t) => filter === "all" || t.status === filter) : tickets;
+  const active = tickets.find((t) => t.id === activeId);
+
+  const upsertTicket = (updated) => setTickets((prev) => {
+    const exists = prev.some((t) => t.id === updated.id);
+    return exists ? prev.map((t) => (t.id === updated.id ? updated : t)) : [updated, ...prev];
+  });
+
+  return (
+    <>
+      <SectionHeader
+        eyebrow={isAdmin ? "Help Desk" : "Get Help"} title="Support"
+        action={!isAdmin && <button className="btn btn-primary" onClick={() => setOpeningNew(true)}><Plus size={14} /> New Ticket</button>}
+      />
+      {isAdmin && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          {["open", "resolved", "all"].map((f) => (
+            <button key={f} className={`tab-btn ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
+              {f[0].toUpperCase() + f.slice(1)} {f !== "all" && `(${tickets.filter((t) => t.status === f).length})`}
+            </button>
+          ))}
+        </div>
+      )}
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card">
+        {loading ? (
+          <div className="card-body" style={{ fontSize: 13, color: "var(--slate)" }}>Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="card-body">
+            <EmptyState icon={<LifeBuoy size={28} />} title="No tickets" note={isAdmin ? "Student support requests will appear here." : "Need help? Open a new ticket and we'll get back to you."} />
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="ledger">
+              <thead><tr>{isAdmin && <th>Student</th>}<th>Subject</th><th>Status</th><th>Last Update</th><th></th></tr></thead>
+              <tbody>
+                {filtered.map((t) => (
+                  <tr key={t.id}>
+                    {isAdmin && <td>{studentName(t.studentId)}</td>}
+                    <td style={{ fontWeight: 600 }}>{t.subject}</td>
+                    <td><span className={`seal ${t.status === "open" ? "seal-pending" : "seal-approved"}`}>{t.status === "open" ? <Clock size={12} /> : <CheckCircle size={12} />}{t.status === "open" ? "Open" : "Resolved"}</span></td>
+                    <td style={{ fontSize: 12.5 }}>{fmtDate(t.updatedAt)}</td>
+                    <td><button className="btn btn-ghost btn-sm" onClick={() => setActiveId(t.id)}><Eye size={13} /> Open</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {openingNew && (
+        <NewTicketModal
+          actions={actions}
+          onClose={() => setOpeningNew(false)}
+          onCreated={(t) => { upsertTicket(t); setOpeningNew(false); setActiveId(t.id); }}
+        />
+      )}
+      {active && (
+        <TicketThreadModal
+          ticket={active} role={role} actions={actions}
+          onClose={() => setActiveId(null)}
+          onUpdated={upsertTicket}
+        />
+      )}
+    </>
+  );
+}
+
+function NewTicketModal({ actions, onClose, onCreated }) {
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    setErr("");
+    if (!subject.trim() || !message.trim()) { setErr("Please fill in both the subject and message."); return; }
+    setSubmitting(true);
+    try {
+      const t = await actions.createSupportTicket({ subject: subject.trim(), message: message.trim() });
+      onCreated(t);
+    } catch (e) {
+      setErr(e.message || "Could not open ticket. Please try again.");
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <Modal title="New Support Ticket" onClose={onClose}>
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <Field label="Subject" inputProps={{ value: subject, onChange: (e) => setSubject(e.target.value), placeholder: "e.g. Issue with fee payment" }} />
+      <Field label="Message" as="textarea" inputProps={{ value: message, onChange: (e) => setMessage(e.target.value), placeholder: "Describe your issue in detail…", rows: 5 }} />
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+        <button className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
+        <button className="btn btn-primary" onClick={submit} disabled={submitting}>{submitting ? "Opening…" : "Open Ticket"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function TicketThreadModal({ ticket, role, actions, onClose, onUpdated }) {
+  const isAdmin = role === "admin";
+  const [replies, setReplies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try { setReplies(await actions.listSupportReplies(ticket.id)); }
+    catch (e) { setErr(e.message || "Could not load this conversation."); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [ticket.id]);
+
+  const send = async () => {
+    if (!text.trim()) return;
+    setSending(true); setErr("");
+    try {
+      const { ticket: updated } = await actions.replySupportTicket(ticket.id, text.trim());
+      setText("");
+      await load();
+      onUpdated(updated);
+    } catch (e) {
+      setErr(e.message || "Could not send reply. Please try again.");
+    }
+    setSending(false);
+  };
+
+  const toggleStatus = async () => {
+    try {
+      const updated = await actions.updateSupportTicketStatus(ticket.id, ticket.status === "open" ? "resolved" : "open");
+      onUpdated(updated);
+    } catch (e) {
+      setErr(e.message || "Could not update ticket status.");
+    }
+  };
+
+  return (
+    <Modal title={ticket.subject} onClose={onClose} width={640}>
+      {isAdmin && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button className={`btn btn-sm ${ticket.status === "open" ? "btn-success" : "btn-ghost"}`} onClick={toggleStatus}>
+            {ticket.status === "open" ? <><CheckCircle size={13} /> Mark Resolved</> : "Reopen"}
+          </button>
+        </div>
+      )}
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 12 }}>{err}</div>}
+      <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, padding: 2 }}>
+        {loading ? <div style={{ fontSize: 13, color: "var(--slate)" }}>Loading…</div> : replies.map((r) => (
+          <div key={r.id} style={{
+            alignSelf: r.fromRole === "student" ? "flex-start" : "flex-end",
+            maxWidth: "80%", background: r.fromRole === "student" ? "var(--parchment)" : "var(--gold-light)",
+            border: "1px solid var(--border)", padding: "8px 12px", borderRadius: 8,
+          }}>
+            <div style={{ fontSize: 11, color: "var(--slate)", marginBottom: 3 }}>{r.fromName || (r.fromRole === "student" ? "Student" : "Administrator")} &middot; {fmtDate(r.date)}</div>
+            <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.text}</div>
+          </div>
+        ))}
+      </div>
+      <Field label="Reply" as="textarea" inputProps={{ value: text, onChange: (e) => setText(e.target.value), placeholder: "Type your reply…", rows: 3 }} />
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        <button className="btn btn-primary" onClick={send} disabled={sending || !text.trim()}>{sending ? "Sending…" : "Send Reply"}</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -4308,6 +4498,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
     { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
     { key: "inbox", label: "Notifications", icon: <Bell size={16} />, count: unreadCount },
     { key: "notices", label: "Notice Board", icon: <Bell size={16} /> },
+    { key: "support", label: "Support", icon: <LifeBuoy size={16} /> },
   ];
 
   return (
@@ -4568,6 +4759,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
           )}
         </>
       )}
+
+      {page === "support" && <SupportCenter role="student" actions={actions} />}
     </PortalShell>
   );
 }
@@ -5081,6 +5274,13 @@ export default function App() {
       const created = await api.post("/messages", msg);
       setStore((prev) => ({ ...prev, messages: [created, ...prev.messages] }));
     },
+
+    // ---- Support tickets ----
+    listSupportTickets: async () => api.get("/support/tickets"),
+    createSupportTicket: async ({ subject, message }) => api.post("/support/tickets", { subject, message }),
+    listSupportReplies: async (ticketId) => api.get(`/support/tickets/${ticketId}/replies`),
+    replySupportTicket: async (ticketId, text) => api.post(`/support/tickets/${ticketId}/replies`, { text }),
+    updateSupportTicketStatus: async (ticketId, status) => api.patch(`/support/tickets/${ticketId}`, { status }),
 
     markMessagesRead: async (studentId) => {
       await api.patch("/messages/mark-all-read", { studentId });

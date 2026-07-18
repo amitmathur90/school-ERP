@@ -128,6 +128,16 @@ const MESSAGE_FIELDS = [
   ["fromRole", "from_role"], ["text", "text"], ["date", "date"], ["isRead", "is_read"],
 ];
 
+const SUPPORT_TICKET_FIELDS = [
+  ["id", "id"], ["studentId", "student_id"], ["subject", "subject"],
+  ["status", "status"], ["createdAt", "created_at"], ["updatedAt", "updated_at"],
+];
+
+const SUPPORT_REPLY_FIELDS = [
+  ["id", "id"], ["ticketId", "ticket_id"], ["fromRole", "from_role"],
+  ["fromName", "from_name"], ["text", "text"], ["date", "date"],
+];
+
 const EMAIL_FIELDS = [
   ["id", "id"], ["to", "to_email"], ["subject", "subject"], ["body", "body"], ["date", "date"],
 ];
@@ -148,5 +158,5 @@ module.exports = {
   rowToCamel, camelToSnakeParams, camelToSnakeSet,
   STUDENT_FIELDS, COURSE_FIELDS, TEACHER_FIELDS, NOTICE_FIELDS,
   GRADE_FIELDS, TRANSACTION_FIELDS, MESSAGE_FIELDS, EMAIL_FIELDS,
-  ACADEMIC_FIELDS, DOCUMENT_FIELDS,
+  ACADEMIC_FIELDS, DOCUMENT_FIELDS, SUPPORT_TICKET_FIELDS, SUPPORT_REPLY_FIELDS,
 };

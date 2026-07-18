@@ -60,6 +60,7 @@ app.use("/api/academic-details", require("./routes/academicDetails"));
 app.use("/api/documents", require("./routes/documents"));
 app.use("/api/leave", require("./routes/leave"));
 app.use("/api/messages", require("./routes/messages"));
+app.use("/api/support", require("./routes/support"));
 app.use("/api/emails", require("./routes/emails"));
 
 app.get("/api/health", async (req, res) => {
