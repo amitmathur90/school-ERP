@@ -4567,7 +4567,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const [payingOnline, setPayingOnline] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState(null);
   const [viewingNotice, setViewingNotice] = useState(null);
-  const [gradeExamFilter, setGradeExamFilter] = useState("All");
+  const [viewingResultGroup, setViewingResultGroup] = useState(null);
   const student = store.students.find((s) => s.id === user.id);
 
   if (!student) return null;
@@ -4615,8 +4615,13 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const pct = attendance.length ? Math.round((attendance.filter((r) => r.status === "Present").length / attendance.length) * 100) : null;
   const fee = store.fees[student.id];
   const gradeList = store.grades[student.id] || [];
-  const gradeExamTypes = Array.from(new Set(gradeList.map((g) => g.examType))).sort();
-  const filteredGradeList = gradeExamFilter === "All" ? gradeList : gradeList.filter((g) => g.examType === gradeExamFilter);
+  const gradeGroups = Object.values(
+    gradeList.reduce((acc, g) => {
+      const key = `${g.semester}__${g.examType}`;
+      (acc[key] ||= { key, semester: g.semester, examType: g.examType, subjects: [] }).subjects.push(g);
+      return acc;
+    }, {})
+  ).sort((a, b) => a.semester - b.semester || EXAM_TYPES.indexOf(a.examType) - EXAM_TYPES.indexOf(b.examType));
   const myTransactions = store.transactions.filter((t) => t.studentId === student.id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const myMessages = store.messages.filter((m) => m.toStudentId === student.id);
   const unreadCount = myMessages.filter((m) => !m.isRead).length;
@@ -4724,26 +4729,44 @@ function StudentPortal({ user, store, actions, onLogout }) {
             eyebrow="Results" title="Academic Record"
             action={<button className="btn btn-outline" onClick={() => setShowResult(true)}><Eye size={14} /> View Result</button>}
           />
-          {gradeExamTypes.length > 1 && (
-            <div style={{ marginBottom: 14, maxWidth: 240 }}>
-              <label>Exam Type</label>
-              <select value={gradeExamFilter} onChange={(e) => setGradeExamFilter(e.target.value)}>
-                <option value="All">All Exam Types</option>
-                {gradeExamTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+          {gradeGroups.length === 0 ? (
+            <div className="card"><div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div></div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {gradeGroups.map((grp) => (
+                <div className="card" key={grp.key}>
+                  <div className="card-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px" }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Semester {grp.semester} &middot; {grp.examType}</div>
+                      <div style={{ fontSize: 12, color: "var(--slate)" }}>{grp.subjects.length} subject{grp.subjects.length > 1 ? "s" : ""}</div>
+                    </div>
+                    <button className="btn btn-outline btn-sm" onClick={() => setViewingResultGroup(grp)}>View More</button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-          <div className="card">
-            {filteredGradeList.length === 0 ? <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div> : (
-              <table className="ledger">
-                <thead><tr><th>Semester</th><th>Subject</th><th>Exam</th><th>Score</th></tr></thead>
-                <tbody>{filteredGradeList.map((g) => (
-                  <tr key={g.id}><td className="num">Sem {g.semester}</td><td>{g.subject}</td><td>{g.examType}</td><td className="num">{g.marks}/{g.maxMarks}</td></tr>
-                ))}</tbody>
-              </table>
-            )}
-          </div>
         </>
+      )}
+
+      {viewingResultGroup && (
+        <Modal title={`Semester ${viewingResultGroup.semester} — ${viewingResultGroup.examType}`} onClose={() => setViewingResultGroup(null)}>
+          <table className="ledger">
+            <thead><tr><th>Subject</th><th>Score</th><th>%</th></tr></thead>
+            <tbody>
+              {viewingResultGroup.subjects.map((g) => (
+                <tr key={g.id}>
+                  <td>{g.subject}</td>
+                  <td className="num">{g.marks}/{g.maxMarks}</td>
+                  <td className="num">{g.maxMarks ? Math.round((g.marks / g.maxMarks) * 1000) / 10 : "—"}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-ghost" onClick={() => setViewingResultGroup(null)}>Close</button>
+          </div>
+        </Modal>
       )}
 
       {showResult && (
