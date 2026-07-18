@@ -4563,7 +4563,6 @@ function GradesEntry({ courses, students, grades, actions }) {
 
 function StudentPortal({ user, store, actions, onLogout }) {
   const [page, setPage] = useState("overview");
-  const [showResult, setShowResult] = useState(false);
   const [payingOnline, setPayingOnline] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState(null);
   const [viewingNotice, setViewingNotice] = useState(null);
@@ -4725,10 +4724,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
 
       {page === "grades" && (
         <>
-          <SectionHeader
-            eyebrow="Results" title="Academic Record"
-            action={<button className="btn btn-outline" onClick={() => setShowResult(true)}><Eye size={14} /> View Result</button>}
-          />
+          <SectionHeader eyebrow="Results" title="Academic Record" />
           <div className="card">
             {gradeGroups.length === 0 ? (
               <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div>
@@ -4801,12 +4797,6 @@ function StudentPortal({ user, store, actions, onLogout }) {
           </Modal>
         );
       })()}
-
-      {showResult && (
-        <Modal title="Result Card" onClose={() => setShowResult(false)} width={760}>
-          <ResultCard student={student} course={course} grades={gradeList} />
-        </Modal>
-      )}
 
       {page === "fees" && (
         <>
