@@ -76,7 +76,7 @@ router.post("/razorpay/create-order", async (req, res) => {
   const client = getRazorpayClient();
   if (!client) return res.status(503).json({ error: "Razorpay is not configured on this server yet. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env." });
 
-  const { studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths } = req.body;
+  const { studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths, purpose } = req.body;
   if (!studentId || !totalAmount || Number(totalAmount) <= 0) {
     return res.status(400).json({ error: "studentId and a positive totalAmount are required." });
   }
@@ -98,6 +98,7 @@ router.post("/razorpay/create-order", async (req, res) => {
         paymentMode: paymentMode || "Single",
         planTotalAmount: planTotalAmount != null ? String(planTotalAmount) : "",
         tenureMonths: tenureMonths != null ? String(tenureMonths) : "",
+        purpose: purpose === "admission" ? "admission" : "course",
       },
     });
 
@@ -169,6 +170,7 @@ router.post("/razorpay/verify", async (req, res) => {
       gateway: "razorpay",
       gatewayPaymentId: razorpay_payment_id,
       gatewayOrderId: razorpay_order_id,
+      purpose: notes.purpose === "admission" ? "admission" : "course",
     });
 
     res.status(201).json(transaction);
@@ -214,7 +216,7 @@ router.post("/payu/create-order", async (req, res) => {
 
   if (!payuConfigured()) return res.status(503).json({ error: "PayU is not configured on this server yet. Set PAYU_MERCHANT_KEY and PAYU_SALT in .env." });
 
-  const { studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths } = req.body;
+  const { studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths, purpose } = req.body;
   if (!studentId || !totalAmount || Number(totalAmount) <= 0) {
     return res.status(400).json({ error: "studentId and a positive totalAmount are required." });
   }
@@ -227,11 +229,14 @@ router.post("/payu/create-order", async (req, res) => {
   const [firstname, ...rest] = (student.name || "Student").split(" ");
   const lastname = rest.join(" ") || ".";
 
+  // All 5 PayU udf slots are already used below, so the admission-vs-course
+  // purpose rides in productinfo instead — it's part of both the request and
+  // response hash, so the callback can trust it came back unmodified.
   const fields = {
     key: process.env.PAYU_MERCHANT_KEY,
     txnid,
     amount,
-    productinfo: "College Fee Payment",
+    productinfo: purpose === "admission" ? "Admission Fee Payment" : "Course Fee Payment",
     firstname: firstname || "Student",
     email: student.email,
     phone: student.phone || "9999999999",
@@ -289,6 +294,7 @@ router.post("/payu/callback", express.urlencoded({ extended: true }), async (req
       gateway: "payu",
       gatewayPaymentId: body.mihpayid || body.txnid,
       gatewayOrderId: body.txnid,
+      purpose: body.productinfo === "Admission Fee Payment" ? "admission" : "course",
     });
 
     res.redirect(`${FRONTEND_URL}/?payment=success`);

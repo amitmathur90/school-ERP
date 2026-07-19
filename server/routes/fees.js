@@ -13,7 +13,8 @@ function rowToFee(r) {
     emisPaid: r.plan_emis_paid,
   } : null;
   return {
-    studentId: r.student_id, totalFee: r.total_fee, paid: r.paid, dueDate: r.due_date, plan,
+    studentId: r.student_id, totalFee: r.total_fee, paid: r.paid,
+    admissionFeePaid: r.admission_fee_paid || 0, dueDate: r.due_date, plan,
     extraFields: r.extra_fields ? JSON.parse(r.extra_fields) : null,
     lastReminderAt: r.last_reminder_at,
   };

@@ -10,28 +10,22 @@ const router = express.Router();
 
 function uid(p) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
 
-// All uploaded documents live under server/uploads/students/<studentId>/ —
-// a real folder per student on disk, as asked for (not just a blob in the
-// database). The database only stores the file's metadata + where to find it.
+// Uploaded documents are stored as bytes in the `documents.file_data` column
+// (Postgres BYTEA) instead of on local disk. Render's free web service wipes
+// its local filesystem on every deploy/restart, which made disk-stored files
+// disappear (DB metadata survived, but the actual file was gone — "File is
+// missing from disk" for admin). Storing the bytes in Postgres, the one
+// piece of storage that's actually persistent here, fixes that; it's the
+// same pattern already used for student/teacher photos (photo_data).
+//
+// UPLOAD_ROOT is kept only so any files uploaded before this change (still
+// referenced by file_path on old rows, if they happen to survive on the
+// currently-running instance) keep working until re-uploaded.
 const UPLOAD_ROOT = path.join(__dirname, "..", "uploads", "students");
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const studentId = req.body.studentId;
-    if (!studentId) return cb(new Error("studentId is required"));
-    const dir = path.join(UPLOAD_ROOT, studentId);
-    fs.mkdirSync(dir, { recursive: true }); // creates the student's folder the first time they upload anything
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    cb(null, `${Date.now()}-${safeName}`);
-  },
-});
 
 const ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB, matching the reference form
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_MIME.includes(file.mimetype)) {
@@ -41,12 +35,18 @@ const upload = multer({
   },
 });
 
+// Explicit column list — deliberately excludes file_data. This route is
+// fetched in bulk for every logged-in user (loadAll on the frontend), so
+// pulling every document's full binary content here would be a major,
+// unnecessary performance regression. Only GET /:id/file needs file_data.
+const METADATA_COLUMNS = "id, student_id, sno, document_type, original_photocopy, document_no, file_name, file_path, file_size, mime_type, uploaded_at";
+
 // GET /api/documents -> flat array of metadata (no file content), frontend groups by studentId
 router.get("/", authenticate, async (req, res) => {
   const { studentId } = req.query;
   const rows = studentId
-    ? await db.all("SELECT * FROM documents WHERE student_id = ? ORDER BY sno", [studentId])
-    : await db.all("SELECT * FROM documents ORDER BY student_id, sno");
+    ? await db.all(`SELECT ${METADATA_COLUMNS} FROM documents WHERE student_id = ? ORDER BY sno`, [studentId])
+    : await db.all(`SELECT ${METADATA_COLUMNS} FROM documents ORDER BY student_id, sno`);
   res.json(rows.map((r) => rowToCamel(r, DOCUMENT_FIELDS)));
 });
 
@@ -59,43 +59,48 @@ router.post("/upload", (req, res) => {
 
     const { studentId, sno, documentType, originalPhotocopy, documentNo } = req.body;
     const student = await db.get("SELECT id FROM students WHERE id = ?", [studentId]);
-    if (!student) {
-      fs.unlink(req.file.path, () => {}); // don't leave an orphaned file if the student doesn't exist
-      return res.status(404).json({ error: "Student not found." });
-    }
+    if (!student) return res.status(404).json({ error: "Student not found." });
 
     const id = uid("doc");
-    // Store the path relative to the uploads root — keeps the DB portable if
-    // the server ever moves to a different machine/folder.
-    const relativePath = path.relative(UPLOAD_ROOT, req.file.path);
     await db.run(
-      `INSERT INTO documents (id, student_id, sno, document_type, original_photocopy, document_no, file_name, file_path, file_size, mime_type, uploaded_at)
+      `INSERT INTO documents (id, student_id, sno, document_type, original_photocopy, document_no, file_name, file_data, file_size, mime_type, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, studentId, Number(sno) || 1, documentType || "", originalPhotocopy || "", documentNo || "",
-        req.file.originalname, relativePath, req.file.size, req.file.mimetype, new Date().toISOString()]
+        req.file.originalname, req.file.buffer, req.file.size, req.file.mimetype, new Date().toISOString()]
     );
 
-    const row = await db.get("SELECT * FROM documents WHERE id = ?", [id]);
+    const row = await db.get(`SELECT ${METADATA_COLUMNS} FROM documents WHERE id = ?`, [id]);
     res.status(201).json(rowToCamel(row, DOCUMENT_FIELDS));
   });
 });
 
 // GET /api/documents/:id/file — streams the actual file (for viewing/downloading)
 router.get("/:id/file", authenticate, async (req, res) => {
-  const doc = await db.get("SELECT * FROM documents WHERE id = ?", [req.params.id]);
+  const doc = await db.get("SELECT file_data, file_path, mime_type FROM documents WHERE id = ?", [req.params.id]);
   if (!doc) return res.status(404).json({ error: "Document not found." });
-  const fullPath = path.join(UPLOAD_ROOT, doc.file_path);
-  if (!fullPath.startsWith(UPLOAD_ROOT)) return res.status(400).json({ error: "Invalid file path." }); // guards against a malformed/tampered path escaping the uploads folder
-  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: "File is missing from disk." });
-  res.sendFile(fullPath);
+
+  if (doc.file_data) {
+    res.set("Content-Type", doc.mime_type || "application/octet-stream");
+    return res.send(doc.file_data);
+  }
+
+  // Legacy row uploaded before file_data existed — fall back to disk in case
+  // it happens to still be there on the currently-running instance.
+  if (doc.file_path) {
+    const fullPath = path.join(UPLOAD_ROOT, doc.file_path);
+    if (fullPath.startsWith(UPLOAD_ROOT) && fs.existsSync(fullPath)) return res.sendFile(fullPath);
+  }
+  res.status(404).json({ error: "File is missing. Please re-upload this document." });
 });
 
-// DELETE /api/documents/:id — removes both the database row and the file on disk
+// DELETE /api/documents/:id — removes the database row (and any legacy on-disk file)
 router.delete("/:id", authenticate, authorizeRoles("super_admin", "admin"), async (req, res) => {
-  const doc = await db.get("SELECT * FROM documents WHERE id = ?", [req.params.id]);
+  const doc = await db.get("SELECT file_path FROM documents WHERE id = ?", [req.params.id]);
   if (!doc) return res.status(404).json({ error: "Document not found." });
-  const fullPath = path.join(UPLOAD_ROOT, doc.file_path);
-  fs.unlink(fullPath, () => {}); // best-effort; don't fail the request if the file's already gone
+  if (doc.file_path) {
+    const fullPath = path.join(UPLOAD_ROOT, doc.file_path);
+    fs.unlink(fullPath, () => {}); // best-effort; don't fail the request if the file's already gone
+  }
   await db.run("DELETE FROM documents WHERE id = ?", [req.params.id]);
   res.json({ ok: true });
 });

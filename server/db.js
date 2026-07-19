@@ -409,7 +409,10 @@ async function init() {
   await ensureColumn("transactions", "gateway", "TEXT");
   await ensureColumn("transactions", "gateway_payment_id", "TEXT");
   await ensureColumn("transactions", "gateway_order_id", "TEXT");
+  await ensureColumn("transactions", "purpose", "TEXT NOT NULL DEFAULT 'course'");
   await ensureColumn("fees", "last_reminder_at", "TEXT");
+  await ensureColumn("fees", "admission_fee_paid", "NUMERIC DEFAULT 0");
+  await ensureColumn("documents", "file_data", "BYTEA");
   await ensureColumn("messages", "is_read", "BOOLEAN NOT NULL DEFAULT false");
   await ensureColumn("support_tickets", "student_unread", "BOOLEAN NOT NULL DEFAULT false");
   await ensureColumn("support_tickets", "admin_unread", "BOOLEAN NOT NULL DEFAULT true");

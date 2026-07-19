@@ -29,14 +29,19 @@ function uid(p) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(
  * @param {string} [params.gateway]       e.g. 'razorpay' — omitted for manual/cash entries
  * @param {string} [params.gatewayPaymentId]
  * @param {string} [params.gatewayOrderId]
+ * @param {string} [params.purpose]       'admission' | 'course' (default) — admission-fee payments
+ *   (made pre-approval, before a course fee target even exists) are tracked in their own
+ *   fees.admission_fee_paid bucket instead of fees.paid, so they never get silently counted
+ *   as a partial course-fee payment once the student is approved and total_fee is set.
  * @returns {Promise<{transaction: object, student: object}>}
  */
 async function recordPayment(params) {
   const {
     studentId, feeAmount, additionalFees, totalAmount, paymentType, paymentMode,
     planTotalAmount, tenureMonths, recordedByName, recordedByRole,
-    gateway, gatewayPaymentId, gatewayOrderId,
+    gateway, gatewayPaymentId, gatewayOrderId, purpose,
   } = params;
+  const isAdmission = purpose === "admission";
 
   if (!studentId || !totalAmount) {
     const err = new Error("studentId and totalAmount are required.");
@@ -78,8 +83,8 @@ async function recordPayment(params) {
     const id = uid("txn");
     const date = new Date().toISOString();
     await tx.run(
-      `INSERT INTO transactions (id, student_id, fee_amount, additional_fees, total_amount, payment_type, payment_mode, plan_total_amount, tenure_months, installment_amount, date, recorded_by_name, recorded_by_role, gateway, gateway_payment_id, gateway_order_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO transactions (id, student_id, fee_amount, additional_fees, total_amount, payment_type, payment_mode, plan_total_amount, tenure_months, installment_amount, date, recorded_by_name, recorded_by_role, gateway, gateway_payment_id, gateway_order_id, purpose)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, studentId, feeAmount || 0, JSON.stringify(additionalFees || []), totalAmount,
         paymentType || "Cash", paymentMode || "Single",
@@ -88,19 +93,25 @@ async function recordPayment(params) {
         paymentMode === "EMI" ? installmentAmount : null,
         date, recordedByName || "", recordedByRole || "",
         gateway || null, gatewayPaymentId || null, gatewayOrderId || null,
+        isAdmission ? "admission" : "course",
       ]
     );
 
-    const newPaid = (existingFee?.paid || 0) + Number(totalAmount);
+    // Admission-fee payments (pre-approval) are tracked separately in
+    // admission_fee_paid and never touch paid/total_fee — see the jsdoc above.
+    const newPaid = isAdmission ? (existingFee?.paid || 0) : (existingFee?.paid || 0) + Number(totalAmount);
+    const newAdmissionPaid = isAdmission
+      ? (existingFee?.admission_fee_paid || 0) + Number(totalAmount)
+      : (existingFee?.admission_fee_paid || 0);
     if (existingFee) {
       await tx.run(
-        `UPDATE fees SET paid = ?, plan_total_amount = ?, plan_tenure_months = ?, plan_installment = ?, plan_emis_paid = ? WHERE student_id = ?`,
-        [newPaid, newPlanTotal, newPlanTenure, installmentAmount, newPlanEmisPaid, studentId]
+        `UPDATE fees SET paid = ?, admission_fee_paid = ?, plan_total_amount = ?, plan_tenure_months = ?, plan_installment = ?, plan_emis_paid = ? WHERE student_id = ?`,
+        [newPaid, newAdmissionPaid, newPlanTotal, newPlanTenure, installmentAmount, newPlanEmisPaid, studentId]
       );
     } else {
       await tx.run(
-        `INSERT INTO fees (student_id, total_fee, paid, plan_total_amount, plan_tenure_months, plan_installment, plan_emis_paid) VALUES (?, 0, ?, ?, ?, ?, ?)`,
-        [studentId, newPaid, newPlanTotal, newPlanTenure, installmentAmount, newPlanEmisPaid]
+        `INSERT INTO fees (student_id, total_fee, paid, admission_fee_paid, plan_total_amount, plan_tenure_months, plan_installment, plan_emis_paid) VALUES (?, 0, ?, ?, ?, ?, ?, ?)`,
+        [studentId, newPaid, newAdmissionPaid, newPlanTotal, newPlanTenure, installmentAmount, newPlanEmisPaid]
       );
     }
 

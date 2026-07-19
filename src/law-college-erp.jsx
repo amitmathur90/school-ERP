@@ -667,7 +667,7 @@ function SummarySection({ title, printable, children }) {
   );
 }
 
-function ApplicationSummary({ student, course, printable, academicDetails, documents }) {
+function ApplicationSummary({ student, course, printable, academicDetails, documents, transactions }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 18, alignItems: "center", marginBottom: 18 }}>
@@ -728,6 +728,13 @@ function ApplicationSummary({ student, course, printable, academicDetails, docum
         <SummaryRow label="Medium" value={student.medium} />
         <SummaryRow label="Remarks" value={student.remarks} />
       </SummarySection>
+      {transactions && transactions.length > 0 && (
+        <SummarySection title="Admission Fee Payment" printable={printable}>
+          {transactions.map((t) => (
+            <SummaryRow key={t.id} label={fmtDate(t.date)} value={`₹${Number(t.totalAmount).toLocaleString("en-IN")} — Transaction ID: ${t.id}`} />
+          ))}
+        </SummarySection>
+      )}
       {student.extraFields && Object.keys(student.extraFields).length > 0 && (
         <SummarySection title="Additional Information" printable={printable}>
           {Object.entries(student.extraFields).map(([k, v]) => (
@@ -978,6 +985,7 @@ function PaymentReceiptModal({ transaction: t, student, course, onClose }) {
           <SummaryRow label="Student Name" value={student?.name} />
           <SummaryRow label="Roll No." value={student?.rollNo || "—"} />
           <SummaryRow label="Course" value={course?.name || "—"} />
+          <SummaryRow label="Purpose" value={t.purpose === "admission" ? "Admission Fee" : "Course Fee"} />
           <SummaryRow label="Payment Type" value={t.paymentType} />
           <SummaryRow label="Payment Mode" value={t.paymentMode} />
           <SummaryRow label="Recorded By" value={`${t.recordedByName}${t.recordedByRole ? ` (${t.recordedByRole})` : ""}`} />
@@ -1129,7 +1137,7 @@ const ACADEMIC_TO_DOCUMENT_TYPES = {
   "Other": ["Other"],
 };
 
-function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic, resumeDocuments, resumeFeePaid, paymentsConfig, onSaveStep, onFinalSubmit, onSaveAcademic, onUploadDocument, onDeleteDocument, onPayNow, onExit }) {
+function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic, resumeDocuments, resumeFeePaid, resumeAdmissionTxnId, paymentsConfig, onSaveStep, onFinalSubmit, onSaveAcademic, onUploadDocument, onDeleteDocument, onPayNow, onExit }) {
   const blank = {
     firstName: "", firstNameHi: "", middleName: "", middleNameHi: "", lastName: "", lastNameHi: "",
     gender: "Male", email: "", phone: "", howKnow: "", emergencyMobile: "", whatsapp: "", aadhar: "",
@@ -1220,6 +1228,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const [paidNow, setPaidNow] = useState(!!resumeFeePaid);
+  const [admissionTxnId, setAdmissionTxnId] = useState(resumeAdmissionTxnId || "");
   const [paying, setPaying] = useState(false);
   const [payErr, setPayErr] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -1236,8 +1245,9 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const payAdmissionFee = async () => {
     setPayErr(""); setPaying(true);
     try {
-      await onPayNow({ studentId: draftId, feeAmount: Number(f.amount) || 0, additionalFees: [], totalAmount: Number(f.amount) || 0, paymentMode: "Single" });
+      const txn = await onPayNow({ studentId: draftId, feeAmount: Number(f.amount) || 0, additionalFees: [], totalAmount: Number(f.amount) || 0, paymentMode: "Single", purpose: "admission" });
       setPaidNow(true);
+      if (txn?.id) setAdmissionTxnId(txn.id);
     } catch (ex) {
       setPayErr(ex.message || "Payment could not be completed.");
     }
@@ -1356,6 +1366,10 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     setAttempted(true);
     const e = validateStep(5);
     if (e) { setErr(e); return; }
+    if (paymentsConfig?.available && Number(f.amount) > 0 && !paidNow) {
+      setErr("Please complete the admission fee payment above before submitting.");
+      return;
+    }
     setErr(""); setSaving(true);
     try {
       const rows = academicRows.filter((r) => r.name || r.board.trim() || r.subject.trim())
@@ -1365,9 +1379,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       const newId = await onSaveStep(snap, 5, draftId);
       const finalId = draftId || newId;
       await onFinalSubmit(snap, finalId);
-      if (!paidNow && paymentsConfig?.available && Number(f.amount) > 0) {
-        await payAdmissionFee();
-      }
     } catch (ex) {
       setErr(ex.message || "Something went wrong while submitting. Please try again.");
     }
@@ -1742,8 +1753,8 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>Admission Fee: ₹{Number(f.amount || 0).toLocaleString("en-IN")}</div>
                       <div style={{ fontSize: 12, color: "var(--slate)", marginTop: 2 }}>
                         {paidNow
-                          ? "Payment received — thank you."
-                          : "You'll be asked to pay this right after you submit. You can also pay later from your Fees page."}
+                          ? `Payment received — thank you.${admissionTxnId ? ` Transaction ID: ${admissionTxnId}` : ""}`
+                          : "Please pay the admission fee before submitting your application."}
                       </div>
                     </div>
                     {paidNow ? (
@@ -1996,7 +2007,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
         </>
       )}
 
-      {page === "admissions" && <AdmissionsRegistry students={students} courses={courses} actions={actions} academicDetails={store.academicDetails} documents={store.documents} />}
+      {page === "admissions" && <AdmissionsRegistry students={students} courses={courses} actions={actions} academicDetails={store.academicDetails} documents={store.documents} transactions={store.transactions} />}
       {page === "students" && <StudentsDirectory students={approvedStudents} courses={courses} store={store} actions={actions} canImport />}
       {page === "teachers" && <FacultyDirectory teachers={teachers} students={students} actions={actions} />}
       {page === "courses" && <CoursesManager courses={courses} students={students} actions={actions} />}
@@ -2168,7 +2179,7 @@ function AdminPermissionsModal({ admin, actions, onClose, onSaved }) {
   );
 }
 
-function AdmissionsRegistry({ students, courses, actions, academicDetails, documents }) {
+function AdmissionsRegistry({ students, courses, actions, academicDetails, documents, transactions }) {
   const [filter, setFilter] = useState("pending");
   const [courseFilter, setCourseFilter] = useState("All");
   const [q, setQ] = useState("");
@@ -2315,6 +2326,7 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
             <ApplicationSummary
               student={viewingStudent} course={courses.find((c) => c.id === viewingStudent.courseId)}
               academicDetails={academicDetails?.[viewingStudent.id] || []} documents={documents?.[viewingStudent.id] || []}
+              transactions={(transactions || []).filter((t) => t.studentId === viewingStudent.id && t.purpose === "admission")}
             />
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
               <button className="btn btn-ghost" onClick={() => setViewingId(null)}>Close</button>
@@ -3454,10 +3466,11 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig, t
               <EmptyState icon={<Wallet size={28} />} title="No payments recorded" note="This student hasn't made any payments yet." />
             ) : (
               <table className="ledger">
-                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
+                <thead><tr><th>Date</th><th>Purpose</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
                 <tbody>{txns.map((t) => (
                   <tr key={t.id}>
                     <td>{fmtDate(t.date)}</td>
+                    <td>{t.purpose === "admission" ? "Admission Fee" : "Course Fee"}</td>
                     <td className="num">₹{t.totalAmount.toLocaleString("en-IN")}</td>
                     <td>{t.paymentType}</td>
                     <td>{t.paymentMode}</td>
@@ -4643,7 +4656,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
           resumeStudent={student}
           resumeAcademic={store.academicDetails[student.id] || []}
           resumeDocuments={store.documents[student.id] || []}
-          resumeFeePaid={(store.fees[student.id]?.paid || 0) > 0}
+          resumeFeePaid={(store.fees[student.id]?.admissionFeePaid || 0) > 0}
+          resumeAdmissionTxnId={[...store.transactions].filter((t) => t.studentId === student.id && t.purpose === "admission").sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.id}
           paymentsConfig={store.paymentsConfig}
           onSaveStep={actions.saveDraftStep}
           onSaveAcademic={actions.saveAcademicDetails}
@@ -4751,7 +4765,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
       {page === "application" && (
         <>
           <SectionHeader eyebrow="Read Only" title="My Application" />
-          <ApplicationSummary student={student} course={course} academicDetails={store.academicDetails[student.id] || []} documents={store.documents[student.id] || []} />
+          <ApplicationSummary student={student} course={course} academicDetails={store.academicDetails[student.id] || []} documents={store.documents[student.id] || []} transactions={store.transactions.filter((t) => t.studentId === student.id && t.purpose === "admission")} />
         </>
       )}
 
@@ -4926,10 +4940,11 @@ function StudentPortal({ user, store, actions, onLogout }) {
             <div className="card-header"><h3 style={{ fontSize: 15 }}>Payment History</h3></div>
             {myTransactions.length === 0 ? <div className="card-body"><EmptyState icon={<Wallet size={28} />} title="No payments recorded" note="Your payment history will appear here." /></div> : (
               <table className="ledger">
-                <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
+                <thead><tr><th>Date</th><th>Purpose</th><th>Amount</th><th>Type</th><th>Mode</th><th>Recorded By</th><th></th></tr></thead>
                 <tbody>{myTransactions.map((t) => (
                   <tr key={t.id}>
                     <td>{fmtDate(t.date)}</td>
+                    <td>{t.purpose === "admission" ? "Admission Fee" : "Course Fee"}</td>
                     <td className="num">₹{t.totalAmount.toLocaleString("en-IN")}</td>
                     <td>{t.paymentType}</td>
                     <td>{t.paymentMode}</td>
@@ -5020,15 +5035,19 @@ function PendingOrRejectedScreen({ student, course, store, actions, onLogout }) 
   const [showApp, setShowApp] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payErr, setPayErr] = useState("");
+  const [viewingReceipt, setViewingReceipt] = useState(null);
   const myEmail = store.emails.filter((e) => e.to === student.email).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
   const isPending = (student.status || "").toLowerCase() === "pending";
   const fee = store.fees[student.id];
-  const needsPayment = isPending && (!fee || fee.paid === 0) && Number(student.amount) > 0;
+  const needsPayment = isPending && (!fee || !fee.admissionFeePaid) && Number(student.amount) > 0;
+  const admissionTransactions = store.transactions
+    .filter((t) => t.studentId === student.id && t.purpose === "admission")
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const payNow = async () => {
     setPayErr(""); setPaying(true);
     try {
-      await actions.payFeeOnline({ studentId: student.id, feeAmount: Number(student.amount) || 0, additionalFees: [], totalAmount: Number(student.amount) || 0, paymentMode: "Single" });
+      await actions.payFeeOnline({ studentId: student.id, feeAmount: Number(student.amount) || 0, additionalFees: [], totalAmount: Number(student.amount) || 0, paymentMode: "Single", purpose: "admission" });
     } catch (ex) {
       setPayErr(ex.message || "Payment could not be completed.");
     }
@@ -5072,6 +5091,22 @@ function PendingOrRejectedScreen({ student, course, store, actions, onLogout }) 
               </div>
             </div>
           )}
+          {admissionTransactions.length > 0 && (
+            <div className="card" style={{ textAlign: "left", marginTop: 16 }}>
+              <div className="card-body" style={{ padding: "14px 16px" }}>
+                <div className="eyebrow" style={{ marginBottom: 10 }}>Admission Fee Payment History</div>
+                {admissionTransactions.map((t) => (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "6px 0", fontSize: 12.5 }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>₹{Number(t.totalAmount).toLocaleString("en-IN")} &middot; {fmtDate(t.date)}</div>
+                      <div style={{ color: "var(--slate)", fontFamily: "var(--font-mono)", fontSize: 11 }}>Transaction ID: {t.id}</div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setViewingReceipt(t)}><Eye size={13} /> View</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {myEmail && (
             <div className="card" style={{ textAlign: "left", marginTop: 16, background: "#FBF9F4" }}>
               <div className="card-body" style={{ fontSize: 12 }}>
@@ -5088,9 +5123,10 @@ function PendingOrRejectedScreen({ student, course, store, actions, onLogout }) 
       </div>
       {showApp && (
         <div style={{ maxWidth: 620, margin: "20px auto 0" }}>
-          <ApplicationSummary student={student} course={course} academicDetails={store.academicDetails[student.id] || []} documents={store.documents[student.id] || []} />
+          <ApplicationSummary student={student} course={course} academicDetails={store.academicDetails[student.id] || []} documents={store.documents[student.id] || []} transactions={admissionTransactions} />
         </div>
       )}
+      {viewingReceipt && <PaymentReceiptModal transaction={viewingReceipt} student={student} course={course} onClose={() => setViewingReceipt(null)} />}
     </div>
   );
 }
@@ -5187,7 +5223,7 @@ export default function App() {
       const academicDetails = groupByStudent(academicRows);
       const documents = groupByStudent(documentRows);
       const fees = {};
-      feeRows.forEach((f) => { fees[f.studentId] = { totalFee: f.totalFee, paid: f.paid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
+      feeRows.forEach((f) => { fees[f.studentId] = { totalFee: f.totalFee, paid: f.paid, admissionFeePaid: f.admissionFeePaid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
       const paymentsConfig = await api.get("/payments/config").catch(() => ({ provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }));
       setStore({ students, teachers, courses, notices, attendance, grades, fees, transactions, messages, emails, paymentsConfig, academicDetails, documents, supportTickets });
       setLoadError("");
@@ -5275,7 +5311,7 @@ export default function App() {
       setStore((prev) => ({
         ...prev,
         students: prev.students.map((s) => s.id === studentId ? student : s),
-        fees: fee ? { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
+        fees: fee ? { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, admissionFeePaid: fee.admissionFeePaid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
       }));
     },
     rejectStudent: async (studentId, reason) => {
@@ -5317,7 +5353,7 @@ export default function App() {
     },
     updateFeePaid: async (studentId, paid, dueDate) => {
       const fee = await api.patch(`/fees/${studentId}`, { paid, dueDate });
-      setStore((prev) => ({ ...prev, fees: { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } }));
+      setStore((prev) => ({ ...prev, fees: { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, admissionFeePaid: fee.admissionFeePaid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } }));
     },
     deleteFeeRecords: async (studentIds) => {
       await api.post("/fees/bulk-delete", { studentIds });
@@ -5391,13 +5427,13 @@ export default function App() {
       setStore((prev) => ({
         ...prev,
         transactions: [created, ...prev.transactions],
-        fees: fee ? { ...prev.fees, [txn.studentId]: { totalFee: fee.totalFee, paid: fee.paid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
+        fees: fee ? { ...prev.fees, [txn.studentId]: { totalFee: fee.totalFee, paid: fee.paid, admissionFeePaid: fee.admissionFeePaid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
         emails: student ? [composeFeeReceiptEmail(student, created), ...prev.emails] : prev.emails,
       }));
     },
 
     // ---- Online payment (student self-service, via Razorpay) ----
-    payFeeOnline: async ({ studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths }) => {
+    payFeeOnline: async ({ studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths, purpose }) => {
       const provider = store.paymentsConfig?.provider;
 
       if (provider === "payu") {
@@ -5406,7 +5442,7 @@ export default function App() {
         // "returns" a result the normal way; the page leaves and comes back
         // later at ?payment=success/failed (handled in the App component).
         const order = await api.post("/payments/payu/create-order", {
-          studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths,
+          studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths, purpose,
         });
         submitPayuRedirectForm(order.payuUrl, order.fields);
         return { redirecting: true };
@@ -5414,7 +5450,7 @@ export default function App() {
 
       // Default / "razorpay": JS checkout popup, resolves in-page.
       const order = await api.post("/payments/razorpay/create-order", {
-        studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths,
+        studentId, feeAmount, additionalFees, totalAmount, paymentMode, planTotalAmount, tenureMonths, purpose,
       });
       await loadRazorpayScript();
 
@@ -5452,7 +5488,7 @@ export default function App() {
       setStore((prev) => ({
         ...prev,
         transactions: [created, ...prev.transactions],
-        fees: fee ? { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
+        fees: fee ? { ...prev.fees, [studentId]: { totalFee: fee.totalFee, paid: fee.paid, admissionFeePaid: fee.admissionFeePaid, dueDate: fee.dueDate, plan: fee.plan, extraFields: fee.extraFields } } : prev.fees,
         emails: student ? [composeFeeReceiptEmail(student, created), ...prev.emails] : prev.emails,
       }));
       return created;
@@ -5568,7 +5604,7 @@ export default function App() {
       const summary = await api.post("/import/students", { rows });
       const [students, fees] = await Promise.all([api.get("/students"), api.get("/fees")]);
       const feesMap = {};
-      fees.forEach((f) => { feesMap[f.studentId] = { totalFee: f.totalFee, paid: f.paid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
+      fees.forEach((f) => { feesMap[f.studentId] = { totalFee: f.totalFee, paid: f.paid, admissionFeePaid: f.admissionFeePaid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
       setStore((prev) => ({ ...prev, students, fees: feesMap }));
       return summary;
     },
@@ -5576,7 +5612,7 @@ export default function App() {
       const summary = await api.post("/import/fees", { rows });
       const fees = await api.get("/fees");
       const feesMap = {};
-      fees.forEach((f) => { feesMap[f.studentId] = { totalFee: f.totalFee, paid: f.paid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
+      fees.forEach((f) => { feesMap[f.studentId] = { totalFee: f.totalFee, paid: f.paid, admissionFeePaid: f.admissionFeePaid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
       setStore((prev) => ({ ...prev, fees: feesMap }));
       return summary;
     },

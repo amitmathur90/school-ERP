@@ -576,21 +576,17 @@ Save each — Render automatically redeploys the affected service.
 - Visit the frontend's URL — should load the login screen and be able to
   reach the backend (try logging in as `admin` / `admin123`)
 
-### About uploaded documents (Step 7 of the admission form)
+### About uploaded documents (Step 5 of the admission form)
 
-Render's free/standard web services have an **ephemeral filesystem** —
-anything written to disk (including the `server/uploads/` folder this app
-creates for student document uploads) is **wiped on every deploy and
-periodic restart**. Fine for testing; not fine for real student documents
-you need to keep.
-
-Two ways to fix this for a real deployment:
-- **Render Persistent Disks** (available on paid instance plans) — mount a
-  disk at `server/uploads` in the service settings; files then survive
-  restarts and deploys.
-- **Move to object storage** (AWS S3, Cloudflare R2, etc.) — a more robust
-  long-term fix, but requires code changes to `server/routes/documents.js`.
-  Ask if you'd like this built out.
+Uploaded documents (photos, certificates, ID proof, etc.) are stored as
+bytes directly in the `documents.file_data` column in Postgres, not on
+local disk — the same approach this app already uses for student/teacher
+photos. This is deliberate: Render's free/standard web services have an
+**ephemeral filesystem** (anything written to disk is wiped on every deploy
+and periodic restart), so storing files on disk would lose them. Postgres
+is the one piece of storage that's actually persistent here, so that's
+where the files live. Nothing extra to configure — it works the same on
+free and paid Render plans.
 
 ### Free plan limitations worth knowing
 

@@ -121,6 +121,7 @@ const TRANSACTION_FIELDS = [
   ["installmentAmount", "installment_amount"], ["date", "date"],
   ["recordedByName", "recorded_by_name"], ["recordedByRole", "recorded_by_role"],
   ["gateway", "gateway"], ["gatewayPaymentId", "gateway_payment_id"], ["gatewayOrderId", "gateway_order_id"],
+  ["purpose", "purpose"],
 ];
 
 const MESSAGE_FIELDS = [
