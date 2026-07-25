@@ -107,29 +107,50 @@ router.patch("/:id", authenticate, async (req, res) => {
 router.patch("/:id/approve", authenticate, authorizeRoles("super_admin", "admin"), requireModule("admissions"), async (req, res) => {
   const { id } = req.params;
   try {
-    const student = await db.get("SELECT * FROM students WHERE id = ?", [id]);
-    if (!student) return res.status(404).json({ error: "Student not found." });
-    const course = student.course_id ? await db.get("SELECT * FROM courses WHERE id = ?", [student.course_id]) : null;
+    const found = await db.transaction(async (tx) => {
+      const student = await tx.get("SELECT * FROM students WHERE id = ?", [id]);
+      if (!student) return false;
+      const course = student.course_id ? await tx.get("SELECT * FROM courses WHERE id = ?", [student.course_id]) : null;
+      const code = course?.code || "STU";
+      const prefix = `${code}-${new Date().getFullYear()}-`;
 
-    const countRow = await db.get("SELECT COUNT(*) AS n FROM students WHERE status = 'approved' AND course_id = ?", [student.course_id]);
-    const rollNo = `${course?.code || "STU"}-${new Date().getFullYear()}-${String(countRow.n + 1).padStart(3, "0")}`;
+      // Concurrent approvals under the same roll-number prefix (e.g. one from
+      // the desktop app, one from mobile, both acting on stale "still
+      // pending" data) need to serialize so they can't both compute the same
+      // next number. Lock on the prefix itself, not just course_id — that
+      // also protects against two courses ever sharing a code.
+      await tx.run("SELECT pg_advisory_xact_lock(hashtext(?)::bigint)", [prefix]);
 
-    await db.run("UPDATE students SET status = 'approved', roll_no = ? WHERE id = ?", [rollNo, id]);
+      // Base the next number on the highest sequence number ever issued
+      // under this prefix rather than a COUNT of currently-approved rows in
+      // this course. A student's course can be reassigned (or the record
+      // otherwise edited) after approval without its roll_no being
+      // recomputed, which silently shrinks that count — the "next" number
+      // COUNT+1 produces can then land on one that's already taken by
+      // someone else, so every retry deterministically fails the same way
+      // instead of the collision being a rare, self-resolving accident.
+      const existing = await tx.all("SELECT roll_no FROM students WHERE roll_no LIKE ?", [`${prefix}%`]);
+      const maxSeq = existing.reduce((max, r) => {
+        const n = Number(r.roll_no.slice(prefix.length));
+        return Number.isFinite(n) && n > max ? n : max;
+      }, 0);
+      const rollNo = `${prefix}${String(maxSeq + 1).padStart(3, "0")}`;
 
-    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const existingFee = await db.get("SELECT student_id FROM fees WHERE student_id = ?", [id]);
-    if (existingFee) {
-      await db.run("UPDATE fees SET total_fee = ?, due_date = ? WHERE student_id = ?", [course?.fee || 0, dueDate, id]);
-    } else {
-      await db.run("INSERT INTO fees (student_id, total_fee, paid, due_date) VALUES (?, ?, 0, ?)", [id, course?.fee || 0, dueDate]);
-    }
+      await tx.run("UPDATE students SET status = 'approved', roll_no = ? WHERE id = ?", [rollNo, id]);
 
+      const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const existingFee = await tx.get("SELECT student_id FROM fees WHERE student_id = ?", [id]);
+      if (existingFee) {
+        await tx.run("UPDATE fees SET total_fee = ?, due_date = ? WHERE student_id = ?", [course?.fee || 0, dueDate, id]);
+      } else {
+        await tx.run("INSERT INTO fees (student_id, total_fee, paid, due_date) VALUES (?, ?, 0, ?)", [id, course?.fee || 0, dueDate]);
+      }
+      return true;
+    });
+
+    if (!found) return res.status(404).json({ error: "Student not found." });
     res.json(await getStudent(id));
   } catch (e) {
-    // Extremely rare: two approvals in the same course landed at almost the exact
-    // same instant and both computed the same roll number. The unique constraint
-    // on roll_no catches it (rather than silently saving a duplicate) — safe to
-    // just retry the approval.
     if (e.code === "23505") {
       return res.status(409).json({ error: "Roll number assignment collided with another approval happening at the same moment. Please try approving again." });
     }
