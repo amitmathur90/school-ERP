@@ -1152,7 +1152,15 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     lastInstitution: "", lastExamYear: "", lastExamPercentage: "", resultStatus: "Pass", gapInStudy: "No",
     lateralEntry: "No", courseGroup: "Primary", courseId: "", amount: "", medium: "English", remarks: "",
   };
-  const [f, setF] = useState({ ...blank, ...(resumeStudent || {}), confirm: resumeStudent?.password || "" });
+  // Resumed drafts come straight from Postgres, where any field the student
+  // hasn't touched yet (e.g. optional Guardian details) is `null`, not `""`.
+  // Spreading that directly over `blank` would let those nulls win, and any
+  // later `.trim()` on an untouched field would crash — so drop null/undefined
+  // keys first and let `blank`'s empty-string defaults stand in for them.
+  const resumeStudentClean = Object.fromEntries(
+    Object.entries(resumeStudent || {}).filter(([, v]) => v !== null && v !== undefined)
+  );
+  const [f, setF] = useState({ ...blank, ...resumeStudentClean, confirm: resumeStudent?.password || "" });
   const [step, setStep] = useState(resumeStudent?.savedUpTo ? Math.min(5, resumeStudent.savedUpTo + 1) : 1);
   const [draftId, setDraftId] = useState(resumeStudent?.id || null);
   const [savedUpTo, setSavedUpTo] = useState(resumeStudent?.savedUpTo || 0);
@@ -1184,8 +1192,13 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const blankAcademicRow = () => ({ localId: uid("arow"), name: "", board: "", passingYear: "", grade: "", subject: "" });
+  // Same null-vs-"" issue as the main form fields above: board/passingYear/etc.
+  // are nullable columns, so an untouched cell comes back null and later
+  // `.trim()` calls on it would crash — fall back to "" for any null field.
   const [academicRows, setAcademicRows] = useState(
-    resumeAcademic && resumeAcademic.length ? resumeAcademic.map((r) => ({ ...r, localId: r.id })) : [blankAcademicRow()]
+    resumeAcademic && resumeAcademic.length
+      ? resumeAcademic.map((r) => ({ ...blankAcademicRow(), ...r, board: r.board ?? "", passingYear: r.passingYear ?? "", grade: r.grade ?? "", subject: r.subject ?? "", localId: r.id }))
+      : [blankAcademicRow()]
   );
   const addAcademicRow = () => { setAcademicRows((prev) => [...prev, blankAcademicRow()]); setDirty(true); setJustSaved(false); };
   const removeAcademicRow = (localId) => { setAcademicRows((prev) => prev.length > 1 ? prev.filter((r) => r.localId !== localId) : prev); setDirty(true); setJustSaved(false); };
