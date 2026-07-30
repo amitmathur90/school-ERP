@@ -577,6 +577,7 @@ async function init() {
     // a class just as well as a college programme, and every route/join
     // built on it keeps working unchanged.
     const defaults = [
+      ["c-pg", "Play Group", "PG", "1 Year", 35, 22000, 4000, "Pre-Primary"],
       ["c-nur", "Nursery", "NUR", "1 Year", 40, 25000, 5000, "Pre-Primary"],
       ["c-lkg", "LKG", "LKG", "1 Year", 40, 26000, 5000, "Pre-Primary"],
       ["c-ukg", "UKG", "UKG", "1 Year", 40, 27000, 5000, "Pre-Primary"],

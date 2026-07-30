@@ -1265,6 +1265,14 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     setPaying(false);
   };
 
+  // Nursery/Play Group applicants have no prior schooling, so the "Educational
+  // Details" section (last institution/exam/result) doesn't apply to them.
+  // Play Group applicants additionally have no academic records to speak of,
+  // so the Academic Details + Documents section is skipped entirely for them.
+  const selectedCourseName = (courses.find((c) => c.id === f.courseId) || {}).name || "";
+  const isNurseryOrPlayGroup = selectedCourseName === "Nursery" || selectedCourseName === "Play Group";
+  const isPlayGroupClass = selectedCourseName === "Play Group";
+
   const validateStep = (s) => {
     if (s === 1) {
       if (!f.firstName.trim() || !f.lastName.trim() || !f.email.trim() || !f.phone.trim() || !f.howKnow || !f.emergencyMobile.trim())
@@ -1306,18 +1314,23 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       return "";
     }
     if (s === 4) {
-      if (!f.lastExamYear.trim() || !f.lastExamPercentage.trim() || !f.resultStatus || !f.courseGroup || !f.courseId || !f.medium)
-        return "Please complete all required fields and select a course.";
-      if (!/^\d{4}$/.test(f.lastExamYear.trim())) return "Please enter a valid 4-digit passing year.";
+      if (!f.courseGroup || !f.courseId || !f.medium) return "Please select a course.";
+      if (!isNurseryOrPlayGroup) {
+        if (!f.lastExamYear.trim() || !f.lastExamPercentage.trim() || !f.resultStatus)
+          return "Please complete all required fields and select a course.";
+        if (!/^\d{4}$/.test(f.lastExamYear.trim())) return "Please enter a valid 4-digit passing year.";
+      }
       return "";
     }
     if (s === 5) {
-      const complete = academicRows.filter((r) => r.name && r.board.trim() && r.passingYear.trim());
-      if (complete.length === 0) return "Add at least one academic record with Name, Board/University, and Passing Year filled in.";
-      if (documentRows.some((r) => r.uploading)) return "Please wait for the current upload to finish.";
-      if (documentRows.some((r) => r.docErr)) return "Please fix the upload error before continuing.";
-      const missing = missingAcademicDocuments();
-      if (missing.length > 0) return `Please upload a matching document for: ${missing.map((r) => r.name).join(", ")}.`;
+      if (!isPlayGroupClass) {
+        const complete = academicRows.filter((r) => r.name && r.board.trim() && r.passingYear.trim());
+        if (complete.length === 0) return "Add at least one academic record with Name, Board/University, and Passing Year filled in.";
+        if (documentRows.some((r) => r.uploading)) return "Please wait for the current upload to finish.";
+        if (documentRows.some((r) => r.docErr)) return "Please fix the upload error before continuing.";
+        const missing = missingAcademicDocuments();
+        if (missing.length > 0) return `Please upload a matching document for: ${missing.map((r) => r.name).join(", ")}.`;
+      }
       if (!agreeTerms) return "Please accept the terms and conditions before continuing.";
       return "";
     }
@@ -1447,9 +1460,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     else if (!PHONE_RE.test(f.motherPhone.trim())) fe.motherPhone = "Must be 10 digits";
     if (!f.motherOrg.trim()) fe.motherOrg = "Required";
   } else if (step === 4) {
-    if (!f.lastExamYear.trim()) fe.lastExamYear = "Required";
-    else if (!/^\d{4}$/.test(f.lastExamYear.trim())) fe.lastExamYear = "Enter a valid 4-digit year";
-    if (!f.lastExamPercentage.trim()) fe.lastExamPercentage = "Required";
+    if (!isNurseryOrPlayGroup) {
+      if (!f.lastExamYear.trim()) fe.lastExamYear = "Required";
+      else if (!/^\d{4}$/.test(f.lastExamYear.trim())) fe.lastExamYear = "Enter a valid 4-digit year";
+      if (!f.lastExamPercentage.trim()) fe.lastExamPercentage = "Required";
+    }
     if (!f.courseId) fe.courseId = "Please select a course below";
   }
   }
@@ -1601,21 +1616,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
 
           {step === 4 && (
             <>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>Educational Details</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Last Institution Attended" inputProps={{ value: f.lastInstitution, onChange: set("lastInstitution"), placeholder: "School / College / University name" }} />
-                <Field label="Last Exam Passed Out Year *" error={fe.lastExamYear} inputProps={{ value: f.lastExamYear, onChange: set("lastExamYear"), placeholder: "e.g. 2024" }} />
-                <Field label="Last Exam Percentage *" error={fe.lastExamPercentage} inputProps={{ value: f.lastExamPercentage, onChange: set("lastExamPercentage"), placeholder: "e.g. 78%" }} />
-                <Field label="Result of Qualifying Exam *" as="select" selectProps={{ value: f.resultStatus, onChange: set("resultStatus") }}>
-                  <option>Pass</option><option>Supplementary</option><option>Result Awaited</option>
-                </Field>
-              </div>
-              <div style={{ display: "flex", gap: 28, marginBottom: 18, flexWrap: "wrap" }}>
-                <div><label>Gap Between Study</label><Segmented options={["No", "Yes"]} value={f.gapInStudy} onChange={(v) => setV("gapInStudy", v)} /></div>
-                <div><label>Lateral Entry</label><Segmented options={["No", "Yes"]} value={f.lateralEntry} onChange={(v) => setV("lateralEntry", v)} /></div>
-                <div><label>Medium *</label><Segmented options={["English", "Hindi"]} value={f.medium} onChange={(v) => setV("medium", v)} /></div>
-              </div>
-
               <div className="eyebrow" style={{ marginBottom: 10 }}>Class Selection *</div>
               {fe.courseId && <div style={{ fontSize: 11, color: "var(--danger)", marginBottom: 8 }}>{fe.courseId}</div>}
               <div style={{ marginBottom: 14, maxWidth: 260 }}>
@@ -1651,11 +1651,43 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 <Field label="Amount *" inputProps={{ value: f.amount ? `₹${Number(f.amount).toLocaleString("en-IN")}` : "", readOnly: true, placeholder: "Auto-filled on course selection" }} />
               </div>
               <Field label="Remarks" as="textarea" inputProps={{ value: f.remarks, onChange: set("remarks") }} />
+
+              {!isNurseryOrPlayGroup && (
+                <>
+                  <div className="eyebrow" style={{ margin: "22px 0 10px" }}>Educational Details</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                    <Field label="Last Institution Attended" inputProps={{ value: f.lastInstitution, onChange: set("lastInstitution"), placeholder: "School / College / University name" }} />
+                    <Field label="Last Exam Passed Out Year *" error={fe.lastExamYear} inputProps={{ value: f.lastExamYear, onChange: set("lastExamYear"), placeholder: "e.g. 2024" }} />
+                    <Field label="Last Exam Percentage *" error={fe.lastExamPercentage} inputProps={{ value: f.lastExamPercentage, onChange: set("lastExamPercentage"), placeholder: "e.g. 78%" }} />
+                    <Field label="Result of Qualifying Exam *" as="select" selectProps={{ value: f.resultStatus, onChange: set("resultStatus") }}>
+                      <option>Pass</option><option>Supplementary</option><option>Result Awaited</option>
+                    </Field>
+                  </div>
+                  <div style={{ display: "flex", gap: 28, marginBottom: 18, flexWrap: "wrap" }}>
+                    <div><label>Gap Between Study</label><Segmented options={["No", "Yes"]} value={f.gapInStudy} onChange={(v) => setV("gapInStudy", v)} /></div>
+                    <div><label>Lateral Entry</label><Segmented options={["No", "Yes"]} value={f.lateralEntry} onChange={(v) => setV("lateralEntry", v)} /></div>
+                    <div><label>Medium *</label><Segmented options={["English", "Hindi"]} value={f.medium} onChange={(v) => setV("medium", v)} /></div>
+                  </div>
+                </>
+              )}
+              {isNurseryOrPlayGroup && (
+                <div style={{ marginTop: 18, marginBottom: 4 }}>
+                  <label>Medium *</label>
+                  <Segmented options={["English", "Hindi"]} value={f.medium} onChange={(v) => setV("medium", v)} />
+                </div>
+              )}
             </>
           )}
 
           {step === 5 && (
             <>
+              {isPlayGroupClass && (
+                <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
+                  No prior academic records or documents are required for Play Group admission.
+                </p>
+              )}
+              {!isPlayGroupClass && (
+                <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Academic Details</div>
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
                 Add your previous school/class records, if any (e.g. previous class report card, 10th/12th board result) — one row each. You'll need to upload a matching document below for each one.
@@ -1736,6 +1768,8 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 <div style={{ fontSize: 11.5, color: "var(--danger)", marginTop: 8 }}>
                   Missing a matching document for: {missingDocs.map((r) => r.name).join(", ")}.
                 </div>
+              )}
+                </>
               )}
 
               <div className="eyebrow" style={{ margin: "22px 0 10px" }}>Admission Fee Payment</div>
