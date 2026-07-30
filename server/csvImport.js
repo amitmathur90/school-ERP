@@ -101,6 +101,23 @@ const FEE_ALIASES = {
 };
 const FEE_ALIAS_MAP = buildAliasMap(FEE_FIELD_NAMES, FEE_ALIASES);
 
+// Book catalog import — upserts by accessionNo (see routes/library.js), so an
+// existing card catalog or spreadsheet exported from anywhere shouldn't need
+// reformatting to match this system's exact field names.
+const BOOK_FIELD_NAMES = [
+  "title", "authors", "publisher", "isbn", "category", "readingLevel",
+  "price", "accessionNo", "shelfLocation", "condition",
+];
+const BOOK_ALIASES = {
+  "author": "authors", "author(s)": "authors", "author name": "authors",
+  "isbn number": "isbn", "isbn no": "isbn",
+  "reading level": "readingLevel", "grade level": "readingLevel", "lexile": "readingLevel", "lexile score": "readingLevel",
+  "accession number": "accessionNo", "accession no": "accessionNo", "accession": "accessionNo",
+  "shelf": "shelfLocation", "shelf location": "shelfLocation", "location": "shelfLocation",
+  "book condition": "condition",
+};
+const BOOK_ALIAS_MAP = buildAliasMap(BOOK_FIELD_NAMES, BOOK_ALIASES);
+
 /**
  * Splits one CSV row (a plain object keyed by raw header text) into:
  *  - mapped: recognized fields, in camelCase, ready to write to real columns
@@ -122,4 +139,4 @@ function mapRow(row, aliasMap) {
   return { mapped, extra };
 }
 
-module.exports = { normalizeHeader, mapRow, STUDENT_ALIAS_MAP, FEE_ALIAS_MAP };
+module.exports = { normalizeHeader, mapRow, STUDENT_ALIAS_MAP, FEE_ALIAS_MAP, BOOK_ALIAS_MAP };

@@ -22,7 +22,7 @@ async function sendMail({ to, subject, text }) {
   if (!transporter) return;
   try {
     await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || "Sir Pratap Vidhi Mahavidyalaya"}" <${process.env.SMTP_USER}>`,
+      from: `"${process.env.SMTP_FROM_NAME || "Greenwood Public School"}" <${process.env.SMTP_USER}>`,
       to,
       subject,
       text,

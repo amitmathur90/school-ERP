@@ -21,7 +21,7 @@
 module.exports = {
   apps: [
     {
-      name: "law-college-erp",
+      name: "school-erp",
       script: "server.js",
       instances: "max",       // one worker per CPU core — remove/lower this if you're tight on Postgres connections (see note above)
       exec_mode: "cluster",

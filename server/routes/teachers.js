@@ -5,7 +5,7 @@ const { rowToCamel, camelToSnakeParams, camelToSnakeSet, TEACHER_FIELDS } = requ
 
 const router = express.Router();
 
-const VALID_ROLES = ["hr", "accounts", "exam_incharge", "hod", "faculty"];
+const VALID_ROLES = ["hr", "accounts", "exam_incharge", "hod", "faculty", "librarian"];
 
 async function generateEmployeeId() {
   const year = new Date().getFullYear();

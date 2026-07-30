@@ -1,5 +1,5 @@
-const COLLEGE_NAME = "Sir Pratap Vidhi Mahavidyalaya";
-const COLLEGE_EMAIL = "info.spmjodh@gmail.com";
+const COLLEGE_NAME = "Greenwood Public School";
+const COLLEGE_EMAIL = "info.greenwoodschool@gmail.com";
 const COLLEGE_PHONES = ["(+91) 6378800229", "(+91) 9414145735", "(+91) 9460155558"];
 const EMAIL_FOOTER =
   `For all future requests, you can reach us through the following channels:\n` +
@@ -109,4 +109,38 @@ ${EMAIL_FOOTER}`,
   };
 }
 
-module.exports = { composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail, composeRejectionEmail };
+function composeLibraryDueSoonEmail(borrowerName, loan) {
+  return {
+    subject: `Library Book Due Soon — ${COLLEGE_NAME}`,
+    body:
+`Dear ${borrowerName},
+
+This is a reminder that "${loan.title}" (Accession No. ${loan.accession_no}) is due back at the library soon.
+
+Due Date: ${fmtDate(loan.due_date)}
+
+Please return it to the library by the due date, or renew it if it isn't reserved by anyone else.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
+function composeLibraryOverdueEmail(borrowerName, loan) {
+  return {
+    subject: `Overdue Library Book — ${COLLEGE_NAME}`,
+    body:
+`Dear ${borrowerName},
+
+"${loan.title}" (Accession No. ${loan.accession_no}) was due back at the library on ${fmtDate(loan.due_date)} and hasn't been returned yet.
+${loan.consequence_type === "hold" ? "\nFurther borrowing is on hold until this book is returned." : ""}${loan.consequence_type === "fine" ? "\nA fine is accruing on this book until it is returned." : ""}
+
+Please return it to the library as soon as possible.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
+module.exports = {
+  composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail, composeRejectionEmail,
+  composeLibraryDueSoonEmail, composeLibraryOverdueEmail,
+};

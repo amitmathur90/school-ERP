@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef, Fragment, Component } from "react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
+import loginBg from "./assets/login-bg.png";
 import {
-  Scale, LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
+  LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
   Wallet, LogOut, CheckCircle, XCircle, Clock, Search, Plus,
   Trash2, ChevronRight, User, Lock, FileText,
-  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu, LifeBuoy
+  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu, LifeBuoy, Library
 } from "lucide-react";
 
 /**
@@ -138,9 +139,9 @@ function omitCreds(snapshot) {
 
 /* ============================== CONSTANTS ============================== */
 
-const COLLEGE_NAME = "Sir Pratap Vidhi Mahavidyalaya";
-const COLLEGE_SHORT = "SPVM";
-const COLLEGE_EMAIL = "info.spmjodh@gmail.com";
+const COLLEGE_NAME = "Greenwood Public School";
+const COLLEGE_SHORT = "GPS";
+const COLLEGE_EMAIL = "info.greenwoodschool@gmail.com";
 const COLLEGE_PHONES = ["(+91) 6378800229", "(+91) 9414145735", "(+91) 9460155558"];
 const EMAIL_FOOTER =
   `For all future requests, you can reach us through the following channels:\n` +
@@ -152,14 +153,14 @@ const PIN_RE = /^[0-9]{6}$/;
 const AADHAR_RE = /^[0-9]{12}$/;
 
 const CATEGORIES = ["General", "OBC", "SC", "ST", "EWS"];
-const EXAM_TYPES = ["Internal Assessment", "Mid-Term", "End-Term", "Moot Court", "Viva Voce"];
+const EXAM_TYPES = ["Unit Test", "Mid-Term", "Final Exam", "Class Test", "Annual Exam"];
 
-const COURSE_GROUPS = ["Graduation", "Post Graduation", "Diploma"];
+const COURSE_GROUPS = ["Pre-Primary", "Primary", "Middle", "Secondary", "Senior Secondary"];
 const OCCUPATIONS = ["Govt.", "Private", "Business", "Others"];
 const HOW_KNOW_OPTIONS = [
   "Newspaper", "Television", "Social Media", "Friends & Family",
-  "College Website", "Education Fair / Exhibition", "Hoarding / Banner",
-  "School / College Reference", "Other",
+  "School Website", "Education Fair / Exhibition", "Hoarding / Banner",
+  "School Reference", "Other",
 ];
 const INDIA_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
@@ -636,14 +637,14 @@ function CollegeMark({ light }) {
         width: 38, height: 38, borderRadius: "50%", border: `1.5px solid ${light ? "rgba(255,255,255,0.4)" : "var(--gold)"}`,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
       }}>
-        <Scale size={18} color={light ? "#fff" : "var(--maroon)"} />
+        <GraduationCap size={18} color={light ? "#fff" : "var(--maroon)"} />
       </div>
       <div>
         <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14.5, color: light ? "#fff" : "var(--ink)", lineHeight: 1.15 }}>
           {COLLEGE_NAME}
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: light ? "rgba(255,255,255,0.55)" : "var(--gold)" }}>
-          {COLLEGE_SHORT} &middot; Jodhpur &middot; Justitia Omnibus
+          {COLLEGE_SHORT} &middot; Learning For Life
         </div>
       </div>
     </div>
@@ -686,14 +687,13 @@ function ApplicationSummary({ student, course, printable, academicDetails, docum
         <SummaryRow label="Full Name" value={student.name} />
         <SummaryRow label="Gender" value={student.gender} />
         <SummaryRow label="Date of Birth" value={student.dob} />
-        <SummaryRow label="Marital Status" value={student.maritalStatus} />
         <SummaryRow label="Category" value={student.category || student.caste} />
         <SummaryRow label="Email" value={student.email} />
         <SummaryRow label="Phone" value={student.phone} />
         <SummaryRow label="Emergency Mobile" value={student.emergencyMobile} />
         <SummaryRow label="WhatsApp No." value={student.whatsapp} />
         <SummaryRow label="Aadhar Number" value={student.aadhar} />
-        <SummaryRow label="How did you know about SPVM?" value={student.howKnow} />
+        <SummaryRow label="How did you know about us?" value={student.howKnow} />
       </SummarySection>
       <SummarySection title="Address" printable={printable}>
         <SummaryRow label="Permanent Address" value={student.permanentAddress || student.address} />
@@ -721,9 +721,9 @@ function ApplicationSummary({ student, course, printable, academicDetails, docum
         <SummaryRow label="Gap in Study" value={student.gapInStudy} />
         <SummaryRow label="Lateral Entry" value={student.lateralEntry} />
       </SummarySection>
-      <SummarySection title="Course Applied For" printable={printable}>
-        <SummaryRow label="Course Group" value={student.courseGroup} />
-        <SummaryRow label="Course" value={course?.name} />
+      <SummarySection title="Class Applied For" printable={printable}>
+        <SummaryRow label="Class Group" value={student.courseGroup} />
+        <SummaryRow label="Class" value={course?.name} />
         <SummaryRow label="Admission Fee" value={student.amount ? `₹${Number(student.amount).toLocaleString("en-IN")}` : "—"} />
         <SummaryRow label="Medium" value={student.medium} />
         <SummaryRow label="Remarks" value={student.remarks} />
@@ -984,8 +984,8 @@ function PaymentReceiptModal({ transaction: t, student, course, onClose }) {
           <SummaryRow label="Date" value={fmtDate(t.date)} />
           <SummaryRow label="Student Name" value={student?.name} />
           <SummaryRow label="Roll No." value={student?.rollNo || "—"} />
-          <SummaryRow label="Course" value={course?.name || "—"} />
-          <SummaryRow label="Purpose" value={t.purpose === "admission" ? "Admission Fee" : "Course Fee"} />
+          <SummaryRow label="Class" value={course?.name || "—"} />
+          <SummaryRow label="Purpose" value={t.purpose === "admission" ? "Admission Fee" : "Class Fee"} />
           <SummaryRow label="Payment Type" value={t.paymentType} />
           <SummaryRow label="Payment Mode" value={t.paymentMode} />
           <SummaryRow label="Recorded By" value={`${t.recordedByName}${t.recordedByRole ? ` (${t.recordedByRole})` : ""}`} />
@@ -1118,22 +1118,20 @@ function StepIndicator({ step, labels }) {
   );
 }
 
-const STEP_LABELS = ["Basic & Personal Details", "Address", "Family Details", "Education & Course", "Academic Details & Documents"];
+const STEP_LABELS = ["Basic & Personal Details", "Address", "Family Details", "Education & Class", "Academic Details & Documents"];
 const DOCUMENT_TYPES = [
-  "10th Marksheet", "12th Marksheet", "Graduation Marksheet", "Graduation Certificate",
-  "Transfer Certificate", "Migration Certificate", "Character Certificate",
+  "Report Card / Transfer Certificate", "10th Marksheet", "12th Marksheet",
+  "Birth Certificate", "Transfer Certificate", "Migration Certificate", "Character Certificate",
   "Aadhar Card", "Category Certificate", "Income Certificate", "Photo", "Signature", "Other",
 ];
 // Academic-record "Name" is a dropdown (not free text) so it can be matched reliably
 // against an uploaded document's type — every academic row must have a corresponding
 // uploaded document before the student can proceed.
-const ACADEMIC_NAME_OPTIONS = ["10th", "12th", "Graduation", "Post Graduation", "Diploma", "Other"];
+const ACADEMIC_NAME_OPTIONS = ["Previous Class Report Card", "10th Board", "12th Board", "Other"];
 const ACADEMIC_TO_DOCUMENT_TYPES = {
-  "10th": ["10th Marksheet"],
-  "12th": ["12th Marksheet"],
-  "Graduation": ["Graduation Marksheet", "Graduation Certificate"],
-  "Post Graduation": ["Graduation Marksheet", "Graduation Certificate"],
-  "Diploma": ["Other"],
+  "Previous Class Report Card": ["Report Card / Transfer Certificate"],
+  "10th Board": ["10th Marksheet"],
+  "12th Board": ["12th Marksheet"],
   "Other": ["Other"],
 };
 
@@ -1142,7 +1140,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     firstName: "", firstNameHi: "", middleName: "", middleNameHi: "", lastName: "", lastNameHi: "",
     gender: "Male", email: "", phone: "", howKnow: "", emergencyMobile: "", whatsapp: "", aadhar: "",
     password: "", confirm: "",
-    dob: "", maritalStatus: "Unmarried", spouseName: "", spousePhone: "", caste: "General",
+    dob: "", caste: "General",
     photoData: "", photoName: "", signatureData: "", signatureName: "",
     permanentAddress: "", contactNo: "", mobileNo: "", country: "India", state: "", city: "", pinCode: "",
     stateDomicile: "", addressType: "same", currentAddress: "", currentCity: "", currentState: "", currentPinCode: "",
@@ -1152,7 +1150,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     motherEmail: "", motherOccupation: "Govt.", motherOrg: "", motherPost: "",
     guardianName: "", guardianRelation: "", guardianPhoneResi: "", guardianMobile: "",
     lastInstitution: "", lastExamYear: "", lastExamPercentage: "", resultStatus: "Pass", gapInStudy: "No",
-    lateralEntry: "No", courseGroup: "Graduation", courseId: "", amount: "", medium: "English", remarks: "",
+    lateralEntry: "No", courseGroup: "Primary", courseId: "", amount: "", medium: "English", remarks: "",
   };
   const [f, setF] = useState({ ...blank, ...(resumeStudent || {}), confirm: resumeStudent?.password || "" });
   const [step, setStep] = useState(resumeStudent?.savedUpTo ? Math.min(5, resumeStudent.savedUpTo + 1) : 1);
@@ -1269,8 +1267,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (!f.dob) return "Please enter your date of birth.";
       const d = new Date(f.dob);
       if (isNaN(d.getTime()) || d > new Date()) return "Please enter a valid date of birth.";
-      if (f.maritalStatus === "Married" && (!f.spouseName.trim() || !f.spousePhone.trim())) return "Please enter spouse name and phone number.";
-      if (f.spousePhone.trim() && !PHONE_RE.test(f.spousePhone.trim())) return "Spouse phone number must be exactly 10 digits.";
       if (fileErr.photo || fileErr.signature) return "Please fix the file upload errors before continuing.";
       return "";
     }
@@ -1385,7 +1381,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     setSaving(false);
   };
 
-  const groupCourses = courses.filter((c) => (c.group || "Graduation") === f.courseGroup);
+  const groupCourses = courses.filter((c) => (c.group || "Primary") === f.courseGroup);
   const missingDocs = missingAcademicDocuments();
 
   const fe = {};
@@ -1407,11 +1403,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     if (!f.confirm) fe.confirm = "Required";
     else if (f.password !== f.confirm) fe.confirm = "Passwords do not match";
     if (!f.dob) fe.dob = "Required";
-    if (f.maritalStatus === "Married") {
-      if (!f.spouseName.trim()) fe.spouseName = "Required";
-      if (!f.spousePhone.trim()) fe.spousePhone = "Required";
-    }
-    if (f.spousePhone.trim() && !PHONE_RE.test(f.spousePhone.trim())) fe.spousePhone = "Must be 10 digits";
   } else if (step === 2) {
     if (!f.permanentAddress.trim()) fe.permanentAddress = "Required";
     if (!f.contactNo.trim()) fe.contactNo = "Required";
@@ -1480,7 +1471,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <Field label="Email Address *" error={fe.email} inputProps={{ type: "email", value: f.email, onChange: set("email"), placeholder: "you@example.com", disabled: !!draftId }} />
                 <Field label="Phone Number *" error={fe.phone} inputProps={{ value: f.phone, onChange: set("phone"), placeholder: "10-digit mobile" }} />
-                <Field label="How did you know about SPVM? *" error={fe.howKnow} as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
+                <Field label="How did you know about us? *" error={fe.howKnow} as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
                   <option value="">Select an option</option>
                   {HOW_KNOW_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </Field>
@@ -1498,17 +1489,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Personal Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
-                <div>
-                  <label>Marital Status *</label>
-                  <Segmented options={["Unmarried", "Married"]} value={f.maritalStatus} onChange={(v) => setV("maritalStatus", v)} />
-                </div>
               </div>
-              {f.maritalStatus === "Married" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <Field label="Spouse Name *" error={fe.spouseName} inputProps={{ value: f.spouseName, onChange: set("spouseName") }} />
-                  <Field label="Spouse Phone Number *" error={fe.spousePhone} inputProps={{ value: f.spousePhone, onChange: set("spousePhone") }} />
-                </div>
-              )}
               <div style={{ marginBottom: 18 }}>
                 <label>Caste Category *</label>
                 <Segmented options={["General", "OBC", "SC", "ST", "EWS"]} value={f.caste} onChange={(v) => setV("caste", v)} />
@@ -1622,17 +1603,17 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                 <div><label>Medium *</label><Segmented options={["English", "Hindi"]} value={f.medium} onChange={(v) => setV("medium", v)} /></div>
               </div>
 
-              <div className="eyebrow" style={{ marginBottom: 10 }}>Course Selection *</div>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>Class Selection *</div>
               {fe.courseId && <div style={{ fontSize: 11, color: "var(--danger)", marginBottom: 8 }}>{fe.courseId}</div>}
               <div style={{ marginBottom: 14, maxWidth: 260 }}>
-                <label>Course Group</label>
+                <label>Class Group</label>
                 <select value={f.courseGroup} onChange={(e) => { setF({ ...f, courseGroup: e.target.value, courseId: "", amount: "" }); setDirty(true); setJustSaved(false); }}>
                   {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
                 </select>
               </div>
               <div className="card" style={{ marginBottom: 18, border: fe.courseId ? "1px solid var(--danger)" : undefined }}>
                 <table className="ledger">
-                  <thead><tr><th>S.No.</th><th>Course</th><th>Admission Fee</th><th>Priority</th><th style={{ textAlign: "center" }}>Select</th></tr></thead>
+                  <thead><tr><th>S.No.</th><th>Class</th><th>Admission Fee</th><th>Priority</th><th style={{ textAlign: "center" }}>Select</th></tr></thead>
                   <tbody>
                     {groupCourses.length === 0 ? (
                       <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--slate)", padding: 20 }}>No courses currently offered in this group.</td></tr>
@@ -1664,7 +1645,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
             <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Academic Details</div>
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
-                Add every qualifying exam you've passed (e.g. 10th, 12th, Graduation) — one row each. You'll need to upload a matching document below for each one.
+                Add your previous school/class records, if any (e.g. previous class report card, 10th/12th board result) — one row each. You'll need to upload a matching document below for each one.
               </p>
               <div className="card" style={{ marginBottom: 14 }}>
                 <div style={{ overflowX: "auto" }}>
@@ -1777,7 +1758,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
                     <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} style={{ width: "auto", marginTop: 3 }} />
                     <span>
                       <strong>I agree to the terms and conditions.</strong> मैंने महाविद्यालय की प्रवेश नीति एवं नियमों को पढ़ लिया है, यह स्वीकार्य है, तथा इस प्रार्थना पत्र में दी गई समस्त जानकारी सत्य एवं सही है। यदि कोई जानकारी असत्य पाई जाती है, तो महाविद्यालय मेरा प्रवेश निरस्त करने का अधिकार रखता है।
-                      <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I have read and accept the college's admission policy and rules, will abide by them, and declare that all information in this application is true and correct.</span>
+                      <br /><span style={{ color: "var(--slate)", fontSize: 11.5 }}>I have read and accept the school's admission policy and rules, will abide by them, and declare that all information in this application is true and correct.</span>
                     </span>
                   </label>
                   {attempted && !agreeTerms && <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 8 }}>You must accept the terms and conditions before submitting.</div>}
@@ -1836,12 +1817,15 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      backgroundImage: `url(${loginBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
+    }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <div style={{ display: "inline-flex" }}><CollegeMark /></div>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.85)", padding: "10px 18px", borderRadius: 999 }}><CollegeMark /></div>
         </div>
-        <div className="card">
+        <div className="card" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.18)" }}>
           <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
             {[["student", "Student"], ["teacher", "Staff"], ["admin", "Administrator"]].map(([k, l]) => (
               <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} style={{ flex: 1 }} onClick={() => switchTab(k)}>{l}</button>
@@ -1960,10 +1944,11 @@ function AdminPortal({ user, store, actions, onLogout }) {
     { key: "admissions", label: "Admissions Registry", icon: <UserPlus size={16} /> },
     { key: "students", label: "Students", icon: <GraduationCap size={16} /> },
     { key: "teachers", label: "Faculty & Staff", icon: <Users size={16} /> },
-    { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
+    { key: "courses", label: "Classes", icon: <BookOpen size={16} /> },
     { key: "fees", label: "Fees", icon: <Wallet size={16} /> },
     { key: "reports", label: "Reports", icon: <FileText size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
+    { key: "library", label: "Library", icon: <Library size={16} /> },
     { key: "support", label: "Support", icon: <LifeBuoy size={16} />, count: supportUnread },
   ];
   const nav = allNav.filter((n) => has(n.key));
@@ -2014,6 +1999,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
       {page === "fees" && <FeesManager students={approvedStudents} courses={courses} fees={fees} actions={actions} role="admin" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "reports" && <ReportsCenter store={store} />}
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
+      {page === "library" && <LibraryAdminPage actions={actions} students={students} teachers={teachers} isAdmin />}
       {page === "support" && <SupportCenter role="admin" students={students} tickets={store.supportTickets} actions={actions} />}
       {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
       {viewingNotice && <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />}
@@ -2024,7 +2010,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
 const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "support", "attendance", "grades", "hr", "settings"];
 const MODULE_LABELS = {
   overview: "Overview", admissions: "Admissions Registry", students: "Students",
-  teachers: "Faculty & Staff", courses: "Courses", fees: "Fees", reports: "Reports",
+  teachers: "Faculty & Staff", courses: "Classes", fees: "Fees", reports: "Reports",
   notices: "Notices", support: "Support", attendance: "Attendance", grades: "Grades", hr: "HR", settings: "Staff Accounts (Super Admin only)",
 };
 
@@ -2243,7 +2229,7 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
         </div>
         <div style={{ minWidth: 220 }}>
           <select value={courseFilter} onChange={(e) => changeCourseFilter(e.target.value)}>
-            <option value="All">All Courses</option>
+            <option value="All">All Classes</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -2267,7 +2253,7 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
             <table className="ledger">
               <thead><tr>
                 <th style={{ width: 34 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /></th>
-                <th>Applicant</th><th>Course</th><th>Qualification</th><th>Contact</th><th>Status</th><th></th>
+                <th>Applicant</th><th>Class</th><th>Qualification</th><th>Contact</th><th>Status</th><th></th>
               </tr></thead>
               <tbody>
                 {list.map((s) => (
@@ -2350,7 +2336,7 @@ function AdmissionsRegistry({ students, courses, actions, academicDetails, docum
       {importing && (
         <CsvImportModal
           title="Import Students / Admissions (CSV)"
-          hint="Upload a CSV of students or applicants. Columns like Name, Email, Phone, Course, etc. map automatically. Any column that doesn't match a known field (e.g. Blood Group, Bus Route) is kept as additional info on the student record instead of being discarded. Existing students are matched and updated by email; new emails create new records."
+          hint="Upload a CSV of students or applicants. Columns like Name, Email, Phone, Class, etc. map automatically. Any column that doesn't match a known field (e.g. Blood Group, Bus Route) is kept as additional info on the student record instead of being discarded. Existing students are matched and updated by email; new emails create new records."
           onClose={() => setImporting(false)}
           onImport={actions.importStudentsCsv}
         />
@@ -2368,9 +2354,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
     phone: student.phone || "", emergencyMobile: student.emergencyMobile || "",
     whatsapp: student.whatsapp || "", aadhar: student.aadhar || "", howKnow: student.howKnow || "",
 
-    dob: student.dob || "", maritalStatus: student.maritalStatus || "Unmarried",
-    spouseName: student.spouseName || "", spousePhone: student.spousePhone || "",
-    caste: student.caste || student.category || "General",
+    dob: student.dob || "", caste: student.caste || student.category || "General",
     photoData: student.photoData || "", photoName: student.photoName || "",
     signatureData: student.signatureData || "", signatureName: student.signatureName || "",
 
@@ -2396,7 +2380,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
     lastInstitution: student.lastInstitution || "", lastExamYear: student.lastExamYear || "",
     lastExamPercentage: student.lastExamPercentage || "", resultStatus: student.resultStatus || "Pass",
     gapInStudy: student.gapInStudy || "No", lateralEntry: student.lateralEntry || "No",
-    courseGroup: student.courseGroup || courses.find((c) => c.id === student.courseId)?.group || "Graduation",
+    courseGroup: student.courseGroup || courses.find((c) => c.id === student.courseId)?.group || "Primary",
     courseId: student.courseId || "", medium: student.medium || "English", remarks: student.remarks || "",
 
     status: student.status || "pending", rollNo: student.rollNo || "", rejectReason: student.rejectReason || "",
@@ -2405,7 +2389,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
   const [fileErr, setFileErr] = useState({ photo: "", signature: "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setV = (k, v) => setF({ ...f, [k]: v });
-  const groupCourses = courses.filter((c) => (c.group || "Graduation") === f.courseGroup);
+  const groupCourses = courses.filter((c) => (c.group || "Primary") === f.courseGroup);
 
   const handleFile = (e, kind) => {
     const file = e.target.files[0];
@@ -2422,7 +2406,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
 
   const save = () => {
     if (!f.firstName.trim() || !f.lastName.trim() || !f.phone.trim() || !f.emergencyMobile.trim() || !f.courseId) {
-      setErr("Please complete all required fields (First Name, Last Name, Phone, Emergency Mobile, Course)."); return;
+      setErr("Please complete all required fields (First Name, Last Name, Phone, Emergency Mobile, Class)."); return;
     }
     if (!PHONE_RE.test(f.phone.trim())) { setErr("Phone number must be exactly 10 digits."); return; }
     if (!PHONE_RE.test(f.emergencyMobile.trim())) { setErr("Emergency mobile must be exactly 10 digits."); return; }
@@ -2467,7 +2451,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
         <Field label="Emergency Mobile *" inputProps={{ value: f.emergencyMobile, onChange: set("emergencyMobile") }} />
         <Field label="WhatsApp No." inputProps={{ value: f.whatsapp, onChange: set("whatsapp") }} />
         <Field label="Aadhar Number" inputProps={{ value: f.aadhar, onChange: set("aadhar") }} />
-        <Field label="How did you know about SPVM?" as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
+        <Field label="How did you know about us?" as="select" selectProps={{ value: f.howKnow, onChange: set("howKnow") }}>
           <option value="">Select an option</option>
           {HOW_KNOW_OPTIONS.map((o) => <option key={o}>{o}</option>)}
         </Field>
@@ -2476,17 +2460,7 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
       <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Personal Details</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <Field label="Date of Birth" inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
-        <div>
-          <label>Marital Status</label>
-          <Segmented options={["Unmarried", "Married"]} value={f.maritalStatus} onChange={(v) => setV("maritalStatus", v)} />
-        </div>
       </div>
-      {f.maritalStatus === "Married" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Spouse Name" inputProps={{ value: f.spouseName, onChange: set("spouseName") }} />
-          <Field label="Spouse Phone" inputProps={{ value: f.spousePhone, onChange: set("spousePhone") }} />
-        </div>
-      )}
       <div style={{ marginBottom: 18 }}>
         <label>Category</label>
         <Segmented options={["General", "OBC", "SC", "ST", "EWS"]} value={f.caste} onChange={(v) => setV("caste", v)} />
@@ -2588,13 +2562,13 @@ function EditApplicationModal({ student, courses, actions, onClose }) {
         <div><label>Medium</label><Segmented options={["English", "Hindi"]} value={f.medium} onChange={(v) => setV("medium", v)} /></div>
       </div>
 
-      <div className="eyebrow" style={{ marginBottom: 10 }}>Course</div>
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Class</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Course Group" as="select" selectProps={{ value: f.courseGroup, onChange: (e) => setF({ ...f, courseGroup: e.target.value, courseId: "" }) }}>
+        <Field label="Class Group" as="select" selectProps={{ value: f.courseGroup, onChange: (e) => setF({ ...f, courseGroup: e.target.value, courseId: "" }) }}>
           {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
         </Field>
-        <Field label="Course *" as="select" selectProps={{ value: f.courseId, onChange: set("courseId") }}>
-          <option value="">Select Course</option>
+        <Field label="Class *" as="select" selectProps={{ value: f.courseId, onChange: set("courseId") }}>
+          <option value="">Select Class</option>
           {groupCourses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Field>
       </div>
@@ -2689,7 +2663,7 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
             <table className="ledger">
               <thead><tr>
                 {isAdmin && <th style={{ width: 34 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /></th>}
-                <th>Roll No.</th><th>Name</th><th>Course</th><th>Attendance</th><th>Contact</th><th></th>
+                <th>Roll No.</th><th>Name</th><th>Class</th><th>Attendance</th><th>Contact</th><th></th>
               </tr></thead>
               <tbody>
                 {filtered.map((s) => {
@@ -2755,7 +2729,7 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
       {isAdmin && importing && (
         <CsvImportModal
           title="Import Students (CSV)"
-          hint="Upload a CSV of students. Columns like Name, Email, Phone, Course, etc. map automatically. Anything else (e.g. Blood Group, Bus Route) is kept as additional info instead of being discarded. Existing students are matched and updated by email; new emails create new records."
+          hint="Upload a CSV of students. Columns like Name, Email, Phone, Class, etc. map automatically. Anything else (e.g. Blood Group, Bus Route) is kept as additional info instead of being discarded. Existing students are matched and updated by email; new emails create new records."
           onClose={() => setImporting(false)}
           onImport={actions.importStudentsCsv}
         />
@@ -2985,6 +2959,7 @@ const STAFF_ROLES = [
   { value: "exam_incharge", label: "Examination Incharge" },
   { value: "accounts", label: "Accounts" },
   { value: "hr", label: "HR" },
+  { value: "librarian", label: "Librarian" },
 ];
 const roleLabel = (v) => STAFF_ROLES.find((r) => r.value === v)?.label || v;
 
@@ -3180,7 +3155,7 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
 
           <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Professional Details</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Department *" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Law" }} />
+            <Field label="Department *" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Science" }} />
             <Field label="Designation *" inputProps={{ value: f.designation, onChange: set("designation"), placeholder: "e.g. Associate Professor" }} />
             <Field label="Role *" as="select" selectProps={{ value: f.role, onChange: set("role") }}>
               {STAFF_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -3213,27 +3188,27 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
 
 function CoursesManager({ courses, students, actions }) {
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Graduation", department: "Law" });
+  const [f, setF] = useState({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Primary", department: "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const enrolledCount = (id) => students.filter((s) => s.courseId === id && (s.status || "").toLowerCase() === "approved").length;
 
   const submit = () => {
     if (!f.name || !f.code) return;
     actions.addCourse({ ...f, id: uid("c"), seats: Number(f.seats) || 0, fee: Number(f.fee) || 0, admissionFee: Number(f.admissionFee) || 0 });
-    setF({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Graduation" });
+    setF({ name: "", code: "", duration: "", seats: "", fee: "", admissionFee: "", group: "Primary" });
     setOpen(false);
   };
 
   return (
     <>
-      <SectionHeader eyebrow="Programs" title="Courses Offered" action={<button className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={14} /> Add Course</button>} />
+      <SectionHeader eyebrow="Classes" title="Classes Offered" action={<button className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={14} /> Add Class</button>} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
         {courses.map((c) => (
           <div className="card" key={c.id}>
             <div className="card-body">
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div>
-                  <div className="eyebrow">{c.code} &middot; {c.group || "Graduation"}</div>
+                  <div className="eyebrow">{c.code} &middot; {c.group || "Primary"}</div>
                   <h3 style={{ fontSize: 16, marginTop: 4 }}>{c.name}</h3>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => actions.removeCourse(c.id)}><Trash2 size={13} /></button>
@@ -3249,20 +3224,20 @@ function CoursesManager({ courses, students, actions }) {
         ))}
       </div>
       {open && (
-        <Modal title="Add New Course" onClose={() => setOpen(false)}>
-          <Field label="Course Name *" inputProps={{ value: f.name, onChange: set("name"), placeholder: "e.g. BA LLB (Integrated)" }} />
+        <Modal title="Add New Class" onClose={() => setOpen(false)}>
+          <Field label="Class Name *" inputProps={{ value: f.name, onChange: set("name"), placeholder: "e.g. Class 5" }} />
           <Field label="Short Code *" inputProps={{ value: f.code, onChange: set("code"), placeholder: "e.g. BALLB" }} />
-          <Field label="Course Group *" as="select" selectProps={{ value: f.group, onChange: set("group") }}>
+          <Field label="Class Group *" as="select" selectProps={{ value: f.group, onChange: set("group") }}>
             {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
           </Field>
-          <Field label="Department" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Law" }} />
+          <Field label="Department" inputProps={{ value: f.department, onChange: set("department"), placeholder: "e.g. Science" }} />
           <Field label="Duration" inputProps={{ value: f.duration, onChange: set("duration"), placeholder: "e.g. 5 Years" }} />
           <Field label="Total Seats" inputProps={{ type: "number", value: f.seats, onChange: set("seats") }} />
           <Field label="Admission Fee (₹)" inputProps={{ type: "number", value: f.admissionFee, onChange: set("admissionFee") }} />
           <Field label="Annual Fee (₹)" inputProps={{ type: "number", value: f.fee, onChange: set("fee") }} />
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
             <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={submit}>Add Course</button>
+            <button className="btn btn-primary" onClick={submit}>Add Class</button>
           </div>
         </Modal>
       )}
@@ -3337,9 +3312,9 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig, t
             </div>
           </div>
           <div style={{ minWidth: 190 }}>
-            <label>Course</label>
+            <label>Class</label>
             <select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
-              <option value="All">All Courses</option>
+              <option value="All">All Classes</option>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -3385,7 +3360,7 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig, t
             <table className="ledger">
               <thead><tr>
                 {isAdmin && <th style={{ width: 34 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /></th>}
-                <th>Student</th><th>Course</th><th>Total Fee</th><th>Paid</th><th>Balance</th><th>Due Date</th><th>Status</th><th></th>
+                <th>Student</th><th>Class</th><th>Total Fee</th><th>Paid</th><th>Balance</th><th>Due Date</th><th>Status</th><th></th>
               </tr></thead>
               <tbody>
                 {filtered.map((s) => {
@@ -3470,7 +3445,7 @@ function FeesManager({ students, courses, fees, actions, role, paymentsConfig, t
                 <tbody>{txns.map((t) => (
                   <tr key={t.id}>
                     <td>{fmtDate(t.date)}</td>
-                    <td>{t.purpose === "admission" ? "Admission Fee" : "Course Fee"}</td>
+                    <td>{t.purpose === "admission" ? "Admission Fee" : "Class Fee"}</td>
                     <td className="num">₹{t.totalAmount.toLocaleString("en-IN")}</td>
                     <td>{t.paymentType}</td>
                     <td>{t.paymentMode}</td>
@@ -3845,7 +3820,7 @@ function ReportsCenter({ store }) {
     ["fee", "Fee Report"],
     ["emi", "EMI Report"],
     ["pendingFee", "Pending Fee"],
-    ["courseWise", "Course-Wise Report"],
+    ["courseWise", "Class-Wise Report"],
     ["daily", "Daily Collection"],
   ];
   const courseName = (id) => store.courses.find((c) => c.id === id)?.name || "—";
@@ -3878,18 +3853,18 @@ function AdmissionReport({ store, courseName }) {
   const rows = students.map((s) => ({
     "Applied Date": (s.appliedAt || s.createdAt) ? fmtDate(s.appliedAt || s.createdAt) : "—",
     "Name": s.name, "Email": s.email, "Phone": s.phone,
-    "Course": courseName(s.courseId), "Category": s.category || "—",
+    "Class": courseName(s.courseId), "Category": s.category || "—",
     "Status": s.status.charAt(0).toUpperCase() + s.status.slice(1),
     "Roll No": s.rollNo || "—",
   }));
   return (
     <ReportView
       eyebrow="Admissions" title="Admission Report" filenamePrefix="admission-report"
-      columns={["Applied Date", "Name", "Email", "Phone", "Course", "Category", "Status", "Roll No"]}
+      columns={["Applied Date", "Name", "Email", "Phone", "Class", "Category", "Status", "Roll No"]}
       rows={rows}
       filters={<>
         <div><label>Status</label><select value={status} onChange={(e) => setStatus(e.target.value)}>{["All", "Pending", "Approved", "Rejected"].map((o) => <option key={o}>{o}</option>)}</select></div>
-        <div><label>Course</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Courses</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+        <div><label>Class</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Classes</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
       </>}
     />
   );
@@ -3902,7 +3877,7 @@ function StudentReport({ store, courseName }) {
     const rec = store.attendance[s.id] || [];
     const pct = rec.length ? Math.round((rec.filter((r) => r.status === "Present").length / rec.length) * 100) : null;
     return {
-      "Roll No": s.rollNo, "Name": s.name, "Course": courseName(s.courseId), "Gender": s.gender,
+      "Roll No": s.rollNo, "Name": s.name, "Class": courseName(s.courseId), "Gender": s.gender,
       "Category": s.category, "Email": s.email, "Phone": s.phone,
       "Attendance %": pct === null ? "—" : pct, "DOB": s.dob,
     };
@@ -3910,9 +3885,9 @@ function StudentReport({ store, courseName }) {
   return (
     <ReportView
       eyebrow="Directory" title="Student Report" filenamePrefix="student-report"
-      columns={["Roll No", "Name", "Course", "Gender", "Category", "Email", "Phone", "Attendance %", "DOB"]}
+      columns={["Roll No", "Name", "Class", "Gender", "Category", "Email", "Phone", "Attendance %", "DOB"]}
       rows={rows}
-      filters={<div><label>Course</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Courses</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>}
+      filters={<div><label>Class</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Classes</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>}
     />
   );
 }
@@ -3931,7 +3906,7 @@ function FeeReport({ store, courseName }) {
   const rows = students.map((s) => {
     const fee = store.fees[s.id];
     return {
-      "Roll No": s.rollNo, "Name": s.name, "Course": courseName(s.courseId),
+      "Roll No": s.rollNo, "Name": s.name, "Class": courseName(s.courseId),
       "Total Fee": fee?.totalFee || 0, "Paid": fee?.paid || 0, "Balance": (fee?.totalFee || 0) - (fee?.paid || 0),
       "Status": feeStatusLabel(fee),
     };
@@ -3940,11 +3915,11 @@ function FeeReport({ store, courseName }) {
   return (
     <ReportView
       eyebrow="Accounts" title="Fee Report" filenamePrefix="fee-report"
-      columns={["Roll No", "Name", "Course", "Total Fee", "Paid", "Balance", "Status"]}
+      columns={["Roll No", "Name", "Class", "Total Fee", "Paid", "Balance", "Status"]}
       rows={rows}
       footerNote={`Total Collected: ₹${total.toLocaleString("en-IN")}`}
       filters={<>
-        <div><label>Course</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Courses</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+        <div><label>Class</label><select value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="All">All Classes</option>{store.courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
         <div><label>Status</label><select value={status} onChange={(e) => setStatus(e.target.value)}>{["All", "Paid", "Partial", "Due"].map((o) => <option key={o}>{o}</option>)}</select></div>
       </>}
     />
@@ -3956,7 +3931,7 @@ function EmiReport({ store, courseName }) {
   const rows = students.map((s) => {
     const plan = store.fees[s.id].plan;
     return {
-      "Roll No": s.rollNo, "Name": s.name, "Course": courseName(s.courseId),
+      "Roll No": s.rollNo, "Name": s.name, "Class": courseName(s.courseId),
       "Total EMI Amount": plan.totalAmount, "Tenure (Months)": plan.tenureMonths,
       "Installment Amount": plan.installmentAmount, "EMIs Paid": plan.emisPaid,
       "EMIs Remaining": Math.max(0, plan.tenureMonths - plan.emisPaid),
@@ -3966,7 +3941,7 @@ function EmiReport({ store, courseName }) {
   return (
     <ReportView
       eyebrow="Installments" title="EMI Report" filenamePrefix="emi-report"
-      columns={["Roll No", "Name", "Course", "Total EMI Amount", "Tenure (Months)", "Installment Amount", "EMIs Paid", "EMIs Remaining", "Remaining Amount"]}
+      columns={["Roll No", "Name", "Class", "Total EMI Amount", "Tenure (Months)", "Installment Amount", "EMIs Paid", "EMIs Remaining", "Remaining Amount"]}
       rows={rows}
     />
   );
@@ -3978,7 +3953,7 @@ function PendingFeeReport({ store, courseName }) {
     const fee = store.fees[s.id];
     const balance = (fee?.totalFee || 0) - (fee?.paid || 0);
     return { s, balance, row: {
-      "Roll No": s.rollNo, "Name": s.name, "Course": courseName(s.courseId), "Phone": s.phone,
+      "Roll No": s.rollNo, "Name": s.name, "Class": courseName(s.courseId), "Phone": s.phone,
       "Total Fee": fee?.totalFee || 0, "Paid": fee?.paid || 0, "Balance": balance,
     } };
   }).filter((r) => r.balance > 0).sort((a, b) => b.balance - a.balance).map((r) => r.row);
@@ -3986,7 +3961,7 @@ function PendingFeeReport({ store, courseName }) {
   return (
     <ReportView
       eyebrow="Follow-up" title="Pending Fee Report" filenamePrefix="pending-fee-report"
-      columns={["Roll No", "Name", "Course", "Phone", "Total Fee", "Paid", "Balance"]}
+      columns={["Roll No", "Name", "Class", "Phone", "Total Fee", "Paid", "Balance"]}
       rows={rows}
       footerNote={`Total Outstanding: ₹${total.toLocaleString("en-IN")}`}
     />
@@ -3999,15 +3974,15 @@ function CourseWiseReport({ store }) {
     const collected = enrolled.reduce((sum, s) => sum + (store.fees[s.id]?.paid || 0), 0);
     const pending = enrolled.reduce((sum, s) => sum + ((store.fees[s.id]?.totalFee || 0) - (store.fees[s.id]?.paid || 0)), 0);
     return {
-      "Course": c.name, "Group": c.group || "Graduation", "Total Seats": c.seats,
+      "Class": c.name, "Group": c.group || "Primary", "Total Seats": c.seats,
       "Enrolled": enrolled.length, "Available Seats": Math.max(0, c.seats - enrolled.length),
       "Fee Collected": collected, "Fee Pending": pending,
     };
   });
   return (
     <ReportView
-      eyebrow="Programmes" title="Course-Wise Report" filenamePrefix="course-wise-report"
-      columns={["Course", "Group", "Total Seats", "Enrolled", "Available Seats", "Fee Collected", "Fee Pending"]}
+      eyebrow="Classes" title="Class-Wise Report" filenamePrefix="course-wise-report"
+      columns={["Class", "Group", "Total Seats", "Enrolled", "Available Seats", "Fee Collected", "Fee Pending"]}
       rows={rows}
     />
   );
@@ -4049,6 +4024,7 @@ function TeacherPortal({ user, store, actions, onLogout }) {
     { key: "grades", label: "Grades", icon: <Award size={16} /> },
     { key: "fees", label: "Fees", icon: <Wallet size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
+    { key: "library", label: "Library", icon: <Library size={16} /> },
   ];
   const approvedStudents = store.students.filter((s) => (s.status || "").toLowerCase() === "approved");
 
@@ -4075,6 +4051,7 @@ function TeacherPortal({ user, store, actions, onLogout }) {
       {page === "grades" && <GradesEntry courses={store.courses} students={approvedStudents} grades={store.grades} actions={actions} />}
       {page === "fees" && <FeesManager students={approvedStudents} courses={store.courses} fees={store.fees} actions={actions} role="teacher" paymentsConfig={store.paymentsConfig} transactions={store.transactions} />}
       {page === "notices" && <NoticesBoard notices={store.notices} actions={actions} poster={{ id: user.id, name: user.name, role: "teacher" }} canDelete={false} />}
+      {page === "library" && <LibraryBrowsePage role="teacher" user={user} actions={actions} />}
     </PortalShell>
   );
 }
@@ -4219,6 +4196,542 @@ function LeaveApprovalPanel({ teachers, actions }) {
           </table>
         )}
       </div>
+    </>
+  );
+}
+
+/* ============================== LIBRARY ============================== */
+// See gps-library-management-prd.md. Components here fetch their own data
+// independently (same pattern as LeaveApplicationPanel/LeaveApprovalPanel
+// above) rather than threading through the central `store`, since library
+// data is its own self-contained slice not needed by every portal.
+
+const BOOK_CATEGORIES = ["Picture Book", "Early Reader", "Fiction", "Non-Fiction", "Reference", "Periodical/Magazine"];
+const CONSEQUENCE_LABELS = { none: "No consequence", hold: "Borrowing hold", fine: "Monetary fine" };
+
+function libFmtDate(d) { return d ? fmtDate(d) : "—"; }
+function isOverdue(loan) { return !loan.returnedAt && loan.dueDate < todayIso(); }
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+function LibraryTitleModal({ initial, onClose, onSave }) {
+  const [f, setF] = useState(initial || { title: "", authors: "", publisher: "", isbn: "", category: "Fiction", readingLevel: "", price: "", summerList: false });
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const save = async () => {
+    if (!f.title.trim()) { setErr("Title is required."); return; }
+    setSaving(true); setErr("");
+    try { await onSave(f); }
+    catch (e) { setErr(e.message || "Could not save this title."); setSaving(false); }
+  };
+
+  return (
+    <Modal title={initial ? "Edit Title" : "Add Title"} onClose={onClose} width={560}>
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <Field label="Title *" inputProps={{ value: f.title, onChange: set("title") }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Author(s)" inputProps={{ value: f.authors, onChange: set("authors") }} />
+        <Field label="Publisher" inputProps={{ value: f.publisher, onChange: set("publisher") }} />
+        <Field label="ISBN" inputProps={{ value: f.isbn, onChange: set("isbn") }} />
+        <Field label="Category" as="select" selectProps={{ value: f.category, onChange: set("category") }}>
+          {BOOK_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+        </Field>
+        <Field label="Reading Level" as="select" selectProps={{ value: f.readingLevel, onChange: set("readingLevel") }}>
+          <option value="">Not set</option>
+          {COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}
+        </Field>
+        <Field label="Price" inputProps={{ type: "number", value: f.price, onChange: set("price") }} />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label>On this year's summer reading list?</label>
+        <Segmented options={["No", "Yes"]} value={f.summerList ? "Yes" : "No"} onChange={(v) => setF({ ...f, summerList: v === "Yes" })} />
+      </div>
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function LibraryCopiesModal({ title, actions, onClose, onChanged }) {
+  const [copies, setCopies] = useState(null);
+  const [f, setF] = useState({ accessionNo: "", shelfLocation: "", condition: "Good" });
+  const [err, setErr] = useState("");
+
+  const load = async () => {
+    try { const t = await actions.getLibraryTitle(title.id); setCopies(t.copies); }
+    catch (e) { setErr(e.message || "Could not load copies."); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const addCopy = async () => {
+    if (!f.accessionNo.trim()) { setErr("Accession number is required."); return; }
+    setErr("");
+    try { await actions.addLibraryCopy(title.id, f); setF({ accessionNo: "", shelfLocation: "", condition: "Good" }); load(); onChanged(); }
+    catch (e) { setErr(e.message || "Could not add this copy."); }
+  };
+  const removeCopy = async (id) => {
+    try { await actions.deleteLibraryCopy(id); load(); onChanged(); }
+    catch (e) { setErr(e.message || "Could not remove this copy."); }
+  };
+
+  return (
+    <Modal title={`Copies — ${title.title}`} onClose={onClose} width={620}>
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card" style={{ marginBottom: 16 }}>
+        {!copies ? null : copies.length === 0 ? <div className="card-body"><EmptyState icon={<Library size={26} />} title="No copies yet" note="Add the first copy below." /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Accession No.</th><th>Shelf</th><th>Condition</th><th>Status</th><th></th></tr></thead>
+            <tbody>{copies.map((c) => (
+              <tr key={c.id}>
+                <td style={{ fontFamily: "var(--font-mono)" }}>{c.accessionNo}</td>
+                <td>{c.shelfLocation || "—"}</td><td>{c.condition}</td>
+                <td style={{ textTransform: "capitalize" }}>{c.status}</td>
+                <td>{c.status !== "issued" && <button className="btn btn-ghost btn-sm" onClick={() => removeCopy(c.id)}><Trash2 size={13} /></button>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>Add a Copy</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignItems: "end" }}>
+        <Field label="Accession No. *" inputProps={{ value: f.accessionNo, onChange: (e) => setF({ ...f, accessionNo: e.target.value }) }} />
+        <Field label="Shelf Location" inputProps={{ value: f.shelfLocation, onChange: (e) => setF({ ...f, shelfLocation: e.target.value }) }} />
+        <Field label="Condition" as="select" selectProps={{ value: f.condition, onChange: (e) => setF({ ...f, condition: e.target.value }) }}>
+          {["Good", "Fair", "Worn", "Damaged"].map((c) => <option key={c}>{c}</option>)}
+        </Field>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+        <button className="btn btn-primary btn-sm" onClick={addCopy}><Plus size={13} /> Add Copy</button>
+      </div>
+    </Modal>
+  );
+}
+
+function LibraryCatalogManager({ actions }) {
+  const [titles, setTitles] = useState(null);
+  const [q, setQ] = useState("");
+  const [category, setCategory] = useState("All");
+  const [readingLevel, setReadingLevel] = useState("All");
+  const [editing, setEditing] = useState(null); // { } = add new, {...title} = edit
+  const [managingCopiesFor, setManagingCopiesFor] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = async () => {
+    try {
+      const params = {};
+      if (q) params.q = q;
+      if (category !== "All") params.category = category;
+      if (readingLevel !== "All") params.readingLevel = readingLevel;
+      setTitles(await actions.searchLibraryTitles(params));
+    } catch (e) { setErr(e.message || "Could not load the catalog."); }
+  };
+  useEffect(() => { load(); }, [q, category, readingLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveTitle = async (f) => {
+    if (editing?.id) await actions.updateLibraryTitle(editing.id, f);
+    else await actions.addLibraryTitle(f);
+    setEditing(null); load();
+  };
+  const removeTitle = async (id) => {
+    try { await actions.deleteLibraryTitle(id); load(); }
+    catch (e) { alert(e.message || "Could not remove this title."); }
+  };
+
+  return (
+    <>
+      <SectionHeader eyebrow="Library" title="Catalog" action={
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-outline" onClick={() => setImporting(true)}><UploadCloud size={14} /> Import CSV</button>
+          <button className="btn btn-primary" onClick={() => setEditing({})}><Plus size={14} /> Add Title</button>
+        </div>
+      } />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card no-print" style={{ marginBottom: 16 }}>
+        <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ minWidth: 220 }}>
+            <label>Search</label>
+            <div style={{ position: "relative" }}>
+              <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+              <input style={{ paddingLeft: 30 }} placeholder="Title, author, ISBN…" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+          </div>
+          <div><label>Category</label><select value={category} onChange={(e) => setCategory(e.target.value)}><option>All</option>{BOOK_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+          <div><label>Reading Level</label><select value={readingLevel} onChange={(e) => setReadingLevel(e.target.value)}><option>All</option>{COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}</select></div>
+        </div>
+      </div>
+      <div className="card">
+        {!titles ? null : titles.length === 0 ? <div className="card-body"><EmptyState icon={<Library size={30} />} title="No books found" note="Add a title or adjust your search." /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Title</th><th>Author(s)</th><th>Category</th><th>Reading Level</th><th>Copies</th><th></th></tr></thead>
+            <tbody>{titles.map((t) => (
+              <tr key={t.id}>
+                <td style={{ fontWeight: 600 }}>{t.title}{t.summerList && <span style={{ marginLeft: 6, fontSize: 10, color: "var(--gold)", fontWeight: 700 }}>SUMMER LIST</span>}</td>
+                <td>{t.authors || "—"}</td><td>{t.category}</td><td>{t.readingLevel || "—"}</td>
+                <td className="num">{t.availableCopies} / {t.totalCopies}</td>
+                <td style={{ display: "flex", gap: 4 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setManagingCopiesFor(t)} title="Manage copies"><Library size={13} /></button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditing(t)}><Pencil size={13} /></button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => removeTitle(t.id)}><Trash2 size={13} /></button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {editing !== null && <LibraryTitleModal initial={editing.id ? editing : null} onClose={() => setEditing(null)} onSave={saveTitle} />}
+      {managingCopiesFor && <LibraryCopiesModal title={managingCopiesFor} actions={actions} onClose={() => setManagingCopiesFor(null)} onChanged={load} />}
+      {importing && (
+        <CsvImportModal
+          title="Import Books"
+          hint="Any column headers are fine — Title, Author(s), Publisher, ISBN, Category, Reading Level, Price, Accession No., Shelf Location, Condition are recognized. Rows are matched to an existing title by ISBN (or Title + Author), and matched to an existing copy by Accession No."
+          onClose={() => setImporting(false)}
+          onImport={actions.importLibraryCsv}
+        />
+      )}
+    </>
+  );
+}
+
+function LibraryIssueDesk({ actions, students, teachers }) {
+  const [loans, setLoans] = useState(null);
+  const [borrowerType, setBorrowerType] = useState("student");
+  const [borrowerId, setBorrowerId] = useState("");
+  const [accessionNo, setAccessionNo] = useState("");
+  const [err, setErr] = useState("");
+  const [issuing, setIssuing] = useState(false);
+
+  const load = async () => {
+    try { setLoans(await actions.listLibraryLoans({ status: "issued" })); }
+    catch (e) { setErr(e.message || "Could not load issued loans."); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const issue = async () => {
+    if (!accessionNo.trim() || !borrowerId) { setErr("Choose a borrower and enter an accession number."); return; }
+    setIssuing(true); setErr("");
+    try { await actions.issueLibraryLoan({ accessionNo: accessionNo.trim(), borrowerType, borrowerId }); setAccessionNo(""); setBorrowerId(""); load(); }
+    catch (e) { setErr(e.message || "Could not issue this book."); }
+    setIssuing(false);
+  };
+  const returnLoan = async (id) => {
+    try { await actions.returnLibraryLoan(id); load(); }
+    catch (e) { alert(e.message || "Could not return this book."); }
+  };
+  const renewLoan = async (id) => {
+    try { await actions.renewLibraryLoan(id); load(); }
+    catch (e) { alert(e.message || "Could not renew this loan."); }
+  };
+
+  const borrowerOptions = borrowerType === "student"
+    ? (students || []).filter((s) => (s.status || "").toLowerCase() === "approved")
+    : (teachers || []);
+
+  return (
+    <>
+      <SectionHeader eyebrow="Library" title="Issue & Return Desk" />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header"><h3 style={{ fontSize: 15 }}>Issue a Book</h3></div>
+        <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div><label>Borrower</label><Segmented options={["student", "teacher"]} value={borrowerType} onChange={(v) => { setBorrowerType(v); setBorrowerId(""); }} /></div>
+          <div style={{ minWidth: 260 }}>
+            <label>{borrowerType === "student" ? "Student" : "Staff Member"}</label>
+            <select value={borrowerId} onChange={(e) => setBorrowerId(e.target.value)}>
+              <option value="">Select…</option>
+              {borrowerOptions.map((p) => <option key={p.id} value={p.id}>{p.name}{p.rollNo ? ` — ${p.rollNo}` : p.employeeId ? ` — ${p.employeeId}` : ""}</option>)}
+            </select>
+          </div>
+          <Field label="Accession No. *" inputProps={{ value: accessionNo, onChange: (e) => setAccessionNo(e.target.value), placeholder: "Scan or type" }} />
+          <button className="btn btn-primary" onClick={issue} disabled={issuing}>{issuing ? "Issuing…" : "Issue Book"}</button>
+        </div>
+      </div>
+
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Currently Issued ({(loans || []).length})</div>
+      <div className="card">
+        {!loans ? null : loans.length === 0 ? <div className="card-body"><EmptyState icon={<Library size={28} />} title="Nothing out right now" note="" /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Title</th><th>Accession</th><th>Borrower</th><th>Issued</th><th>Due</th><th>Renewed</th><th></th></tr></thead>
+            <tbody>{loans.map((l) => (
+              <tr key={l.id} style={isOverdue(l) ? { background: "var(--danger-bg)" } : undefined}>
+                <td style={{ fontWeight: 600 }}>{l.title}</td>
+                <td style={{ fontFamily: "var(--font-mono)" }}>{l.accessionNo}</td>
+                <td>{l.borrowerName} {l.borrowerRef ? <span style={{ color: "var(--slate)", fontSize: 11 }}>({l.borrowerRef})</span> : null}</td>
+                <td>{libFmtDate(l.issuedAt)}</td>
+                <td style={isOverdue(l) ? { color: "var(--danger)", fontWeight: 700 } : undefined}>{libFmtDate(l.dueDate)}{isOverdue(l) ? " · Overdue" : ""}</td>
+                <td className="num">{l.renewedCount}</td>
+                <td style={{ display: "flex", gap: 4 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => renewLoan(l.id)}>Renew</button>
+                  <button className="btn btn-success btn-sm" onClick={() => returnLoan(l.id)}>Return</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LibraryFinesPanel({ actions }) {
+  const [loans, setLoans] = useState(null);
+  const load = async () => { try { setLoans((await actions.listLibraryLoans({ status: "returned" })).filter((l) => l.fineStatus === "pending")); } catch { /* best-effort */ } };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+  const decide = async (id, status) => { try { await actions.decideLibraryFine(id, status); load(); } catch (e) { alert(e.message || "Could not update this fine."); } };
+  return (
+    <>
+      <div className="eyebrow" style={{ margin: "22px 0 10px" }}>Pending Fines</div>
+      <div className="card">
+        {!loans ? null : loans.length === 0 ? <div className="card-body"><EmptyState icon={<Wallet size={26} />} title="No pending fines" note="" /></div> : (
+          <table className="ledger">
+            <thead><tr><th>Title</th><th>Borrower</th><th>Returned</th><th>Amount</th><th></th></tr></thead>
+            <tbody>{loans.map((l) => (
+              <tr key={l.id}>
+                <td>{l.title}</td><td>{l.borrowerName}</td><td>{libFmtDate(l.returnedAt)}</td>
+                <td className="num">₹{Number(l.fineAmount).toLocaleString("en-IN")}</td>
+                <td style={{ display: "flex", gap: 6 }}>
+                  <button className="btn btn-success btn-sm" onClick={() => decide(l.id, "paid")}>Mark Paid</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => decide(l.id, "waived")}>Waive</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LibrarySettingsPanel({ actions, canEdit }) {
+  const [rows, setRows] = useState(null);
+  const [dirty, setDirty] = useState({});
+  const [saving, setSaving] = useState(null);
+
+  const load = async () => { setRows(await actions.getLibrarySettings()); };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  const field = (gradeBand, key) => dirty[gradeBand]?.[key] ?? rows.find((r) => r.gradeBand === gradeBand)[key];
+  const setField = (gradeBand, key, value) => setDirty({ ...dirty, [gradeBand]: { ...dirty[gradeBand], [key]: value } });
+
+  const save = async (gradeBand) => {
+    setSaving(gradeBand);
+    try { await actions.updateLibrarySettings(gradeBand, dirty[gradeBand] || {}); setDirty({ ...dirty, [gradeBand]: undefined }); load(); }
+    catch (e) { alert(e.message || "Could not save this policy."); }
+    setSaving(null);
+  };
+
+  if (!rows) return null;
+  return (
+    <>
+      <SectionHeader eyebrow="Library" title="Borrowing Policy by Grade Band" />
+      {!canEdit && (
+        <div className="card" style={{ marginBottom: 16, background: "#FBF9F4" }}>
+          <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>Policy is configured by the Administrator — you can view it here, but only Admin/Super Admin can change it.</div>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {rows.map((r) => (
+          <div className="card" key={r.gradeBand}>
+            <div className="card-header"><h3 style={{ fontSize: 15 }}>{r.gradeBand}</h3></div>
+            <div className="card-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+              <div><label>Loan Period (days)</label><input type="number" disabled={!canEdit} value={field(r.gradeBand, "loanPeriodDays")} onChange={(e) => setField(r.gradeBand, "loanPeriodDays", Number(e.target.value))} /></div>
+              <div><label>Max Simultaneous Loans</label><input type="number" disabled={!canEdit} value={field(r.gradeBand, "maxSimultaneousLoans")} onChange={(e) => setField(r.gradeBand, "maxSimultaneousLoans", Number(e.target.value))} /></div>
+              <div><label>Renewal Limit</label><input type="number" disabled={!canEdit} value={field(r.gradeBand, "renewalLimit")} onChange={(e) => setField(r.gradeBand, "renewalLimit", Number(e.target.value))} /></div>
+              <div>
+                <label>Overdue Consequence</label>
+                <select disabled={!canEdit} value={field(r.gradeBand, "consequenceType")} onChange={(e) => setField(r.gradeBand, "consequenceType", e.target.value)}>
+                  {Object.entries(CONSEQUENCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              {field(r.gradeBand, "consequenceType") === "fine" && (
+                <>
+                  <div><label>Daily Fine Rate (₹)</label><input type="number" disabled={!canEdit} value={field(r.gradeBand, "dailyFineRate")} onChange={(e) => setField(r.gradeBand, "dailyFineRate", Number(e.target.value))} /></div>
+                  <div><label>Fine Cap (₹)</label><input type="number" disabled={!canEdit} value={field(r.gradeBand, "fineCap")} onChange={(e) => setField(r.gradeBand, "fineCap", Number(e.target.value))} /></div>
+                </>
+              )}
+            </div>
+            {canEdit && dirty[r.gradeBand] && (
+              <div className="card-body" style={{ paddingTop: 0, display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-primary btn-sm" onClick={() => save(r.gradeBand)} disabled={saving === r.gradeBand}>{saving === r.gradeBand ? "Saving…" : "Save"}</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function LibraryReportsPanel({ actions }) {
+  const [tab, setTab] = useState("overdue");
+  const [rows, setRows] = useState([]);
+  const tabs = [["overdue", "Overdue"], ["issued", "Currently Issued"], ["mostBorrowed", "Most Borrowed"], ["readingProgram", "Reading Program"], ["catalog", "Full Catalog"]];
+
+  useEffect(() => {
+    (async () => {
+      if (tab === "overdue") setRows((await actions.libraryReport("overdue")).map((l) => ({ "Title": l.title, "Accession": l.accessionNo, "Borrower": l.borrowerName, "Due Date": libFmtDate(l.dueDate), "Days Overdue": Math.max(0, Math.floor((new Date(todayIso()) - new Date(l.dueDate)) / 86400000)) })));
+      else if (tab === "issued") setRows((await actions.libraryReport("issued")).map((l) => ({ "Title": l.title, "Accession": l.accessionNo, "Borrower": l.borrowerName, "Issued": libFmtDate(l.issuedAt), "Due Date": libFmtDate(l.dueDate) })));
+      else if (tab === "mostBorrowed") setRows((await actions.libraryReport("most-borrowed")).map((r) => ({ "Title": r.title, "Author(s)": r.authors, "Times Borrowed": r.timesBorrowed })));
+      else if (tab === "readingProgram") setRows((await actions.libraryReport("reading-program")).map((r) => ({ "Grade Band": r.gradeBand, "Participating Students": r.participatingStudents, "Books Completed": r.booksCompleted })));
+      else if (tab === "catalog") setRows((await actions.libraryReport("catalog")).map((r) => ({ "Title": r.title, "Author(s)": r.authors, "Publisher": r.publisher, "ISBN": r.isbn, "Category": r.category, "Reading Level": r.reading_level, "Accession": r.accession_no, "Shelf": r.shelf_location, "Condition": r.condition, "Status": r.status })));
+    })();
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const columnsFor = {
+    overdue: ["Title", "Accession", "Borrower", "Due Date", "Days Overdue"],
+    issued: ["Title", "Accession", "Borrower", "Issued", "Due Date"],
+    mostBorrowed: ["Title", "Author(s)", "Times Borrowed"],
+    readingProgram: ["Grade Band", "Participating Students", "Books Completed"],
+    catalog: ["Title", "Author(s)", "Publisher", "ISBN", "Category", "Reading Level", "Accession", "Shelf", "Condition", "Status"],
+  };
+
+  return (
+    <>
+      <SectionHeader eyebrow="Library" title="Reports" />
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, flexWrap: "wrap" }} className="no-print">
+        {tabs.map(([k, l]) => <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}
+      </div>
+      <ReportView eyebrow="Library" title={tabs.find(([k]) => k === tab)[1]} filenamePrefix={`library-${tab}`} columns={columnsFor[tab]} rows={rows} />
+    </>
+  );
+}
+
+// Admin/Librarian-facing container — used by both AdminPortal (page: "library")
+// and LibrarianPortal. Settings are visible to both but only editable by
+// Admin/Super Admin (isAdmin prop), per the PRD's role table.
+function LibraryAdminPage({ actions, students, teachers, isAdmin }) {
+  const [tab, setTab] = useState("catalog");
+  const tabs = [["catalog", "Catalog"], ["desk", "Issue & Return"], ["reports", "Reports"], ["settings", "Settings"]];
+  return (
+    <>
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, flexWrap: "wrap" }} className="no-print">
+        {tabs.map(([k, l]) => <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}
+      </div>
+      {tab === "catalog" && <LibraryCatalogManager actions={actions} />}
+      {tab === "desk" && <><LibraryIssueDesk actions={actions} students={students} teachers={teachers} /><LibraryFinesPanel actions={actions} /></>}
+      {tab === "reports" && <LibraryReportsPanel actions={actions} />}
+      {tab === "settings" && <LibrarySettingsPanel actions={actions} canEdit={!!isAdmin} />}
+    </>
+  );
+}
+
+// Student/Teacher-facing: browse + their own loans (+ reading badges for students).
+function LibraryBrowsePage({ role, user, student, actions }) {
+  const [tab, setTab] = useState("browse");
+  const [titles, setTitles] = useState(null);
+  const [q, setQ] = useState("");
+  const [readingLevel, setReadingLevel] = useState("All");
+  const [loans, setLoans] = useState(null);
+  const [reading, setReading] = useState(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (tab !== "browse") return;
+    (async () => {
+      const params = {};
+      if (q) params.q = q;
+      if (readingLevel !== "All") params.readingLevel = readingLevel;
+      try { setTitles(await actions.searchLibraryTitles(params)); } catch (e) { setErr(e.message || "Could not load the catalog."); }
+    })();
+  }, [tab, q, readingLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadLoans = async () => { try { setLoans(await actions.myLibraryLoans()); } catch (e) { setErr(e.message || "Could not load your loans."); } };
+  useEffect(() => { if (tab === "myLoans") loadLoans(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab !== "reading" || role !== "student") return;
+    actions.myReadingRecord(user.id).then(setReading).catch(() => {});
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const renew = async (id) => {
+    try { await actions.renewLibraryLoan(id); loadLoans(); }
+    catch (e) { alert(e.message || "Could not renew this loan."); }
+  };
+
+  const tabs = [["browse", "Browse"], ["myLoans", "My Loans"], ...(role === "student" ? [["reading", "Reading Log"]] : [])];
+
+  return (
+    <>
+      <SectionHeader eyebrow="Library" title="Library" />
+      {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, flexWrap: "wrap" }}>
+        {tabs.map(([k, l]) => <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}
+      </div>
+
+      {tab === "browse" && (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ minWidth: 220 }}>
+                <label>Search</label>
+                <div style={{ position: "relative" }}>
+                  <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+                  <input style={{ paddingLeft: 30 }} placeholder="Title, author…" value={q} onChange={(e) => setQ(e.target.value)} />
+                </div>
+              </div>
+              <div><label>Reading Level</label><select value={readingLevel} onChange={(e) => setReadingLevel(e.target.value)}><option>All</option>{COURSE_GROUPS.map((g) => <option key={g}>{g}</option>)}</select></div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+            {(titles || []).map((t) => (
+              <div className="card" key={t.id}>
+                <div className="card-body">
+                  <div className="eyebrow">{t.category}{t.readingLevel ? ` · ${t.readingLevel}` : ""}</div>
+                  <h3 style={{ fontSize: 15, marginTop: 4 }}>{t.title}</h3>
+                  <div style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 2 }}>{t.authors || "—"}</div>
+                  <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: t.availableCopies > 0 ? "var(--success)" : "var(--danger)" }}>
+                    {t.availableCopies > 0 ? `${t.availableCopies} available` : "All copies out"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {titles && titles.length === 0 && <EmptyState icon={<Library size={30} />} title="No books found" note="Try a different search or reading level." />}
+          <p style={{ fontSize: 12, color: "var(--slate)", marginTop: 16 }}>To borrow a book, bring it (or its accession number) to the librarian's desk.</p>
+        </>
+      )}
+
+      {tab === "myLoans" && (
+        <div className="card">
+          {!loans ? null : loans.length === 0 ? <div className="card-body"><EmptyState icon={<Library size={28} />} title="No loans yet" note="Visit the library to borrow a book." /></div> : (
+            <table className="ledger">
+              <thead><tr><th>Title</th><th>Issued</th><th>Due</th><th>Status</th><th></th></tr></thead>
+              <tbody>{loans.map((l) => (
+                <tr key={l.id}>
+                  <td style={{ fontWeight: 600 }}>{l.title}</td>
+                  <td>{libFmtDate(l.issuedAt)}</td>
+                  <td style={isOverdue(l) ? { color: "var(--danger)", fontWeight: 700 } : undefined}>{libFmtDate(l.dueDate)}</td>
+                  <td>{l.returnedAt ? <span style={{ color: "var(--success)" }}>Returned {libFmtDate(l.returnedAt)}</span> : isOverdue(l) ? <span style={{ color: "var(--danger)", fontWeight: 700 }}>Overdue</span> : "On loan"}</td>
+                  <td>{!l.returnedAt && !isOverdue(l) && <button className="btn btn-ghost btn-sm" onClick={() => renew(l.id)}>Renew</button>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === "reading" && role === "student" && (
+        <div className="card">
+          <div className="card-body" style={{ textAlign: "center", padding: "32px 20px" }}>
+            <Award size={36} color="var(--gold)" />
+            <div style={{ fontSize: 32, fontWeight: 800, marginTop: 10 }}>{reading ? reading.booksRead : "—"}</div>
+            <div style={{ color: "var(--slate)", fontSize: 13 }}>books completed</div>
+            {reading && reading.nextMilestone && (
+              <div style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 10 }}>{reading.nextMilestone - reading.booksRead} more to reach your next milestone ({reading.nextMilestone} books)!</div>
+            )}
+            {reading && reading.milestonesReached.length > 0 && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+                {reading.milestonesReached.map((m) => (
+                  <span key={m} className="badge-role badge-admin" style={{ fontSize: 11 }}>{m} Books Badge</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -4389,7 +4902,7 @@ function AttendanceMarking({ courses, students, actions, teacherSubject }) {
       <SectionHeader eyebrow="Register" title="Mark Attendance" />
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div style={{ minWidth: 220 }}><label>Course</label>
+          <div style={{ minWidth: 220 }}><label>Class</label>
             <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -4467,7 +4980,7 @@ function CreateResultModal({ studentName, onClose, onSave }) {
         {rows.map((r) => (
           <div key={r.rid} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "start" }}>
             <div><label>Subject</label>
-              <input value={r.subject} onChange={(e) => setRow(r.rid, { subject: e.target.value })} placeholder="e.g. Law of Contracts" />
+              <input value={r.subject} onChange={(e) => setRow(r.rid, { subject: e.target.value })} placeholder="e.g. Mathematics" />
             </div>
             <div><label>Marks Obtained</label>
               <input type="number" value={r.marks} onChange={(e) => setRow(r.rid, { marks: e.target.value })} />
@@ -4528,7 +5041,7 @@ function GradesEntry({ courses, students, grades, actions }) {
       />
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div><label>Course</label>
+          <div><label>Class</label>
             <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -4624,6 +5137,38 @@ function GradesEntry({ courses, students, grades, actions }) {
   );
 }
 
+/* ============================== LIBRARIAN PORTAL ============================== */
+
+function LibrarianPortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "library", label: "Library", icon: <Library size={16} /> },
+    { key: "myLeave", label: "My Leave", icon: <User size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="Librarian" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {page === "overview" && (
+        <>
+          <SectionHeader eyebrow="Dashboard" title={`Welcome, ${user.name}`} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<Library size={22} />} value={store.students.filter((s) => (s.status || "").toLowerCase() === "approved").length} label="Enrolled Students" />
+            <StatCard icon={<BookOpen size={22} />} label="Catalog & Issue/Return" value="→" onClick={() => setPage("library")} />
+          </div>
+          <div className="card" style={{ background: "#FBF9F4" }}>
+            <div className="card-body" style={{ fontSize: 12.5, color: "var(--slate)" }}>
+              <b style={{ color: "var(--ink)" }}>Note:</b> Borrowing policy (loan periods, fines/holds) is configured by the Administrator — you can view it from Library → Settings, but changing it needs an Admin/Super Admin login.
+            </div>
+          </div>
+        </>
+      )}
+      {page === "library" && <LibraryAdminPage actions={actions} students={store.students} teachers={store.teachers} isAdmin={false} />}
+      {page === "myLeave" && <LeaveApplicationPanel user={user} actions={actions} />}
+    </PortalShell>
+  );
+}
+
 /* ============================== STUDENT PORTAL ============================== */
 
 function StudentPortal({ user, store, actions, onLogout }) {
@@ -4705,7 +5250,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
     { key: "attendance", label: "Attendance", icon: <ClipboardCheck size={16} /> },
     { key: "grades", label: "Grades", icon: <Award size={16} /> },
     { key: "fees", label: "Fees & Payments", icon: <Wallet size={16} /> },
-    { key: "courses", label: "Courses", icon: <BookOpen size={16} /> },
+    { key: "courses", label: "Classes", icon: <BookOpen size={16} /> },
+    { key: "library", label: "Library", icon: <Library size={16} /> },
     { key: "inbox", label: "Notifications", icon: <Bell size={16} />, count: unreadCount },
     { key: "notices", label: "Notice Board", icon: <Bell size={16} /> },
     { key: "support", label: "Support", icon: <LifeBuoy size={16} />, count: supportUnread },
@@ -4731,7 +5277,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
             </div>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <StatCard icon={<BookOpen size={22} />} value={course?.name || "—"} label="Programme" onClick={() => setPage("courses")} />
+            <StatCard icon={<BookOpen size={22} />} value={course?.name || "—"} label="Class" onClick={() => setPage("courses")} />
             <StatCard icon={<ClipboardCheck size={22} />} value={pct === null ? "—" : `${pct}%`} label="Attendance" accent={pct !== null && pct < 75 ? "var(--danger)" : "var(--success)"} onClick={() => setPage("attendance")} />
             <StatCard icon={<Wallet size={22} />} value={fee ? `₹${(fee.totalFee - fee.paid).toLocaleString("en-IN")}` : "—"} label="Fee Balance" onClick={() => setPage("fees")} />
           </div>
@@ -4944,7 +5490,7 @@ function StudentPortal({ user, store, actions, onLogout }) {
                 <tbody>{myTransactions.map((t) => (
                   <tr key={t.id}>
                     <td>{fmtDate(t.date)}</td>
-                    <td>{t.purpose === "admission" ? "Admission Fee" : "Course Fee"}</td>
+                    <td>{t.purpose === "admission" ? "Admission Fee" : "Class Fee"}</td>
                     <td className="num">₹{t.totalAmount.toLocaleString("en-IN")}</td>
                     <td>{t.paymentType}</td>
                     <td>{t.paymentMode}</td>
@@ -4968,12 +5514,12 @@ function StudentPortal({ user, store, actions, onLogout }) {
 
       {page === "courses" && (
         <>
-          <SectionHeader eyebrow="Published by Administrator" title="Courses Offered" />
+          <SectionHeader eyebrow="Published by Administrator" title="Classes Offered" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
             {store.courses.map((c) => (
               <div className="card" key={c.id} style={{ borderColor: c.id === student.courseId ? "var(--gold)" : "var(--border)" }}>
                 <div className="card-body">
-                  <div className="eyebrow">{c.code} &middot; {c.group || "Graduation"}{c.id === student.courseId ? " · Your Programme" : ""}</div>
+                  <div className="eyebrow">{c.code} &middot; {c.group || "Primary"}{c.id === student.courseId ? " · Your Class" : ""}</div>
                   <h3 style={{ fontSize: 16, marginTop: 4 }}>{c.name}</h3>
                   <div style={{ display: "flex", gap: 18, marginTop: 12, fontSize: 12.5, color: "var(--slate)" }}>
                     <div>Duration<br /><b style={{ color: "var(--charcoal)" }}>{c.duration}</b></div>
@@ -4986,6 +5532,8 @@ function StudentPortal({ user, store, actions, onLogout }) {
           </div>
         </>
       )}
+
+      {page === "library" && <LibraryBrowsePage role="student" user={user} student={student} actions={actions} />}
 
       {page === "inbox" && (
         <>
@@ -5511,6 +6059,33 @@ export default function App() {
     applyForLeave: async (payload) => api.post("/leave", payload),
     decideLeave: async (id, status, decisionNote) => api.patch(`/leave/${id}`, { status, decisionNote }),
 
+    // ---- Library: catalog ----
+    searchLibraryTitles: async (params) => api.get(`/library/titles${params ? `?${new URLSearchParams(params)}` : ""}`),
+    getLibraryTitle: async (id) => api.get(`/library/titles/${id}`),
+    addLibraryTitle: async (payload) => api.post("/library/titles", payload),
+    updateLibraryTitle: async (id, payload) => api.patch(`/library/titles/${id}`, payload),
+    deleteLibraryTitle: async (id) => api.del(`/library/titles/${id}`),
+    addLibraryCopy: async (titleId, payload) => api.post(`/library/titles/${titleId}/copies`, payload),
+    updateLibraryCopy: async (id, payload) => api.patch(`/library/copies/${id}`, payload),
+    deleteLibraryCopy: async (id) => api.del(`/library/copies/${id}`),
+    importLibraryCsv: async (rows) => api.post("/library/import", { rows }),
+
+    // ---- Library: policy settings (Admin/Super Admin only, server-enforced) ----
+    getLibrarySettings: async () => api.get("/library/settings"),
+    updateLibrarySettings: async (gradeBand, payload) => api.patch(`/library/settings/${encodeURIComponent(gradeBand)}`, payload),
+
+    // ---- Library: issue / return / renew ----
+    issueLibraryLoan: async (payload) => api.post("/library/loans/issue", payload),
+    returnLibraryLoan: async (loanId) => api.post(`/library/loans/${loanId}/return`),
+    renewLibraryLoan: async (loanId) => api.post(`/library/loans/${loanId}/renew`),
+    decideLibraryFine: async (loanId, fineStatus) => api.patch(`/library/loans/${loanId}/fine`, { fineStatus }),
+    listLibraryLoans: async (params) => api.get(`/library/loans${params ? `?${new URLSearchParams(params)}` : ""}`),
+    myLibraryLoans: async () => api.get("/library/loans/mine"),
+    myReadingRecord: async (studentId) => api.get(`/library/reading/${studentId}`),
+
+    // ---- Library: reports ----
+    libraryReport: async (type, params) => api.get(`/library/reports/${type}${params ? `?${new URLSearchParams(params)}` : ""}`),
+
     // ---- Super Admin: manage Admin accounts ----
     listAdmins: async () => api.get("/admins"),
     createAdmin: async (payload) => api.post("/admins", payload),
@@ -5626,7 +6201,7 @@ export default function App() {
         <GlobalStyles />
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center", color: "var(--slate)" }}>
-            <Scale size={26} style={{ marginBottom: 8 }} />
+            <GraduationCap size={26} style={{ marginBottom: 8 }} />
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>Loading registry…</div>
           </div>
         </div>
@@ -5728,6 +6303,8 @@ export default function App() {
         <ExamInchargePortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : user.role === "hod" ? (
         <HODPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "librarian" ? (
+        <LibrarianPortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : user.role === "faculty" ? (
         <TeacherPortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : (

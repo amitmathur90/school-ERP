@@ -1,4 +1,4 @@
-# Law College ERP — Full Stack Setup (Backend + PostgreSQL + Frontend)
+# School ERP — Full Stack Setup (Backend + PostgreSQL + Frontend)
 
 This package has two parts that both need to run at the same time:
 
@@ -6,7 +6,7 @@ This package has two parts that both need to run at the same time:
    is what makes data visible on any device — the database lives on ONE
    server, and every laptop/phone that talks to that server sees the same
    data, with real concurrent read/write support.
-2. **`law-college-erp.jsx`** — your React frontend, calling this backend
+2. **`school-erp.jsx`** — your React frontend, calling this backend
    over HTTP.
 
 > **Migrated from SQLite.** An earlier version of this project used Node's
@@ -38,7 +38,7 @@ Pick ONE of these:
 4. Once installed, open **pgAdmin** (installed alongside) or a terminal and
    create a database:
    ```sql
-   CREATE DATABASE law_college_erp;
+   CREATE DATABASE school_erp;
    ```
 
 ### Option B — Free hosted PostgreSQL (no local install — often simplest)
@@ -54,7 +54,7 @@ Copy the connection string they give you (looks like
 
 ### Option C — Docker (if you already use it)
 ```bash
-docker run --name erp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=law_college_erp -p 5432:5432 -d postgres:16
+docker run --name erp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=school_erp -p 5432:5432 -d postgres:16
 ```
 
 ---
@@ -81,7 +81,7 @@ You should see:
 Seeded default courses.
 Seeded default administrator account (username: admin / password: admin123 — change this after first login).
 
-  Law College ERP API running at http://localhost:4000
+  School ERP API running at http://localhost:4000
   Database: PostgreSQL (...)
 ```
 
@@ -98,7 +98,7 @@ the Postgres server itself is running.
 
 ## 4. Connect the frontend
 
-Copy `law-college-erp.jsx` into your existing project's `src/` folder
+Copy `school-erp.jsx` into your existing project's `src/` folder
 (replacing the old one), and make sure its dependencies are installed:
 ```bash
 npm install papaparse
@@ -176,13 +176,13 @@ even though the request was otherwise perfectly valid.
 A HOD only ever sees students and faculty in their own department — this
 is enforced by the server (filtering the actual database query), not by
 hiding rows in the browser. This required adding a **Department** field to
-Courses (Admin → Courses → Add Course), since that's what actually links
+Classes (Admin → Classes → Add Class), since that's what actually links
 a student to a department in this schema.
 
-Verified directly: created a student in a Law course and another in a
-Commerce course, logged in as a Law-department HOD, and confirmed they
-only saw the Law student — while Super Admin, querying the same endpoint,
-saw both.
+Verified directly: created a student in a Science-department class and
+another in a Commerce-department class, logged in as a Science-department
+HOD, and confirmed they only saw the Science student — while Super Admin,
+querying the same endpoint, saw both.
 
 ### Leave Management (new)
 
@@ -523,7 +523,7 @@ your-repo/
 ├── .gitignore           <- included in this package
 ├── server/               <- the complete backend (this package's server/ folder)
 └── (your existing frontend project — package.json, vite.config.js, src/, etc.)
-    └── src/law-college-erp.jsx   <- replace with the version in this package
+    └── src/school-erp.jsx   <- replace with the version in this package
 ```
 If you don't already have a Git repo for your frontend project:
 ```bash
@@ -556,17 +556,17 @@ git push -u origin main
 Once all three resources exist, go to each service's **Environment** tab
 in the Render dashboard:
 
-**On `law-college-erp-api` (backend):**
-- `FRONTEND_URL` → your static site's URL, e.g. `https://law-college-erp-frontend.onrender.com` (find this on the static site's own dashboard page)
+**On `school-erp-api` (backend):**
+- `FRONTEND_URL` → your static site's URL, e.g. `https://school-erp-frontend.onrender.com` (find this on the static site's own dashboard page)
 - `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` → from Razorpay (see section 7)
 - `PAYU_MERCHANT_KEY` / `PAYU_SALT` → from PayU (see section 7) — this is
   actually **easier to test on Render than on localhost**, since Render
   gives your backend a real public URL, which is exactly what PayU's
   callback needs.
 
-**On `law-college-erp-frontend` (static site):**
+**On `school-erp-frontend` (static site):**
 - `VITE_API_BASE_URL` → your backend's URL + `/api`, e.g.
-  `https://law-college-erp-api.onrender.com/api`
+  `https://school-erp-api.onrender.com/api`
 
 Save each — Render automatically redeploys the affected service.
 

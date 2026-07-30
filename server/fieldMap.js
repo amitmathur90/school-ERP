@@ -157,9 +157,22 @@ const DOCUMENT_FIELDS = [
   ["mimeType", "mime_type"], ["uploadedAt", "uploaded_at"],
 ];
 
+const BOOK_TITLE_FIELDS = [
+  ["id", "id"], ["title", "title"], ["authors", "authors"], ["publisher", "publisher"],
+  ["isbn", "isbn"], ["category", "category"], ["readingLevel", "reading_level"],
+  ["price", "price"], ["coverData", "cover_data"], ["coverName", "cover_name"],
+  ["summerList", "summer_list"], ["createdAt", "created_at"],
+];
+
+const BOOK_COPY_FIELDS = [
+  ["id", "id"], ["titleId", "title_id"], ["accessionNo", "accession_no"],
+  ["shelfLocation", "shelf_location"], ["condition", "condition"], ["status", "status"],
+];
+
 module.exports = {
   rowToCamel, camelToSnakeParams, camelToSnakeSet,
   STUDENT_FIELDS, COURSE_FIELDS, TEACHER_FIELDS, NOTICE_FIELDS,
   GRADE_FIELDS, TRANSACTION_FIELDS, MESSAGE_FIELDS, EMAIL_FIELDS,
   ACADEMIC_FIELDS, DOCUMENT_FIELDS, SUPPORT_TICKET_FIELDS, SUPPORT_REPLY_FIELDS,
+  BOOK_TITLE_FIELDS, BOOK_COPY_FIELDS,
 };

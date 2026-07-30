@@ -25,7 +25,7 @@ types.setTypeParser(types.builtins.NUMERIC, (val) => (val === null ? null : pars
 types.setTypeParser(types.builtins.INT8, (val) => (val === null ? null : parseInt(val, 10)));
 
 const connectionString = process.env.DATABASE_URL ||
-  `postgresql://${process.env.PGUSER || "postgres"}:${process.env.PGPASSWORD || "postgres"}@${process.env.PGHOST || "localhost"}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || "law_college_erp"}`;
+  `postgresql://${process.env.PGUSER || "postgres"}:${process.env.PGPASSWORD || "postgres"}@${process.env.PGHOST || "localhost"}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || "school_erp"}`;
 
 // Hosted Postgres (Render, Heroku, Neon, Supabase, Railway, ...) requires
 // SSL, using certs that aren't in Node's default trusted CA list — without
@@ -365,6 +365,98 @@ CREATE TABLE IF NOT EXISTS documents (
   mime_type           TEXT,
   uploaded_at         TEXT
 );
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id              TEXT PRIMARY KEY,
+  teacher_id      TEXT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  leave_type      TEXT,
+  start_date      TEXT NOT NULL,
+  end_date        TEXT NOT NULL,
+  reason          TEXT,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  applied_at      TEXT NOT NULL,
+  decided_by      TEXT,
+  decided_at      TEXT,
+  decision_note   TEXT
+);
+
+-- Library Management (see gps-library-management-prd.md).
+-- "book_titles" is the catalog entry (one per book); "book_copies" is each
+-- physical, individually issuable unit of a title (a title with 3 copies has
+-- 3 rows here) — matching the PRD's explicit Title-vs-Copy distinction.
+CREATE TABLE IF NOT EXISTS book_titles (
+  id             TEXT PRIMARY KEY,
+  title          TEXT NOT NULL,
+  authors        TEXT,
+  publisher      TEXT,
+  isbn           TEXT,
+  category       TEXT NOT NULL DEFAULT 'Fiction',
+  reading_level  TEXT,
+  price          NUMERIC DEFAULT 0,
+  cover_data     TEXT,
+  cover_name     TEXT,
+  summer_list    BOOLEAN NOT NULL DEFAULT false,
+  created_at     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS book_copies (
+  id             TEXT PRIMARY KEY,
+  title_id       TEXT NOT NULL REFERENCES book_titles(id) ON DELETE CASCADE,
+  accession_no   TEXT UNIQUE NOT NULL,
+  shelf_location TEXT,
+  condition      TEXT NOT NULL DEFAULT 'Good',
+  status         TEXT NOT NULL DEFAULT 'available'
+);
+
+-- No separate "reading_log" table (unlike the PRD's data-model sketch) —
+-- a returned loan with counts_toward_program=true already IS the reading
+-- record (borrower, what, when), so a second table would just duplicate
+-- book_loans with an extra join. Reading counts/milestones are computed
+-- on the fly from this table instead (see routes/library.js).
+--
+-- borrower_type/borrower_id (not a student_id FK) because the PRD requires
+-- teachers to be able to borrow too (4.1/6), and this app keeps students and
+-- teachers in two separate tables with no shared "person" id — a polymorphic
+-- reference is the pragmatic v1 fit rather than a much larger refactor to
+-- unify them. Application code (routes/library.js) validates borrower_id
+-- against the right table for the given borrower_type.
+CREATE TABLE IF NOT EXISTS book_loans (
+  id                     TEXT PRIMARY KEY,
+  copy_id                TEXT NOT NULL REFERENCES book_copies(id) ON DELETE CASCADE,
+  borrower_type          TEXT NOT NULL DEFAULT 'student',
+  borrower_id            TEXT NOT NULL,
+  grade_band             TEXT,
+  issued_at              TEXT NOT NULL,
+  due_date               TEXT NOT NULL,
+  returned_at            TEXT,
+  renewed_count          INTEGER NOT NULL DEFAULT 0,
+  -- consequence_type/daily_fine_rate/fine_cap are snapshotted from
+  -- library_settings at issue time (not re-read live at return time) so a
+  -- policy edit later doesn't retroactively change a fine already accruing
+  -- on a loan issued under the old policy.
+  consequence_type       TEXT NOT NULL DEFAULT 'none',
+  daily_fine_rate        NUMERIC NOT NULL DEFAULT 0,
+  fine_cap               NUMERIC NOT NULL DEFAULT 0,
+  fine_amount            NUMERIC NOT NULL DEFAULT 0,
+  fine_status            TEXT NOT NULL DEFAULT 'none',
+  issued_by              TEXT,
+  returned_by            TEXT,
+  counts_toward_program  BOOLEAN NOT NULL DEFAULT true,
+  last_reminder_at       TEXT
+);
+
+-- One row per grade band (reuses the same Pre-Primary/Primary/Middle/
+-- Secondary/Senior Secondary bands already used for classes/courses —
+-- see the PRD's "configurable per grade band, not just school-wide").
+CREATE TABLE IF NOT EXISTS library_settings (
+  grade_band              TEXT PRIMARY KEY,
+  loan_period_days        INTEGER NOT NULL DEFAULT 14,
+  max_simultaneous_loans  INTEGER NOT NULL DEFAULT 3,
+  consequence_type        TEXT NOT NULL DEFAULT 'hold',
+  daily_fine_rate         NUMERIC NOT NULL DEFAULT 0,
+  fine_cap                NUMERIC NOT NULL DEFAULT 0,
+  renewal_limit           INTEGER NOT NULL DEFAULT 2
+);
 `;
 
 /* ============================== INDEXES ============================== */
@@ -384,6 +476,14 @@ const INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS idx_academic_student ON academic_details(student_id);
   CREATE INDEX IF NOT EXISTS idx_documents_student ON documents(student_id);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_students_roll_no_unique ON students(roll_no) WHERE roll_no IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_leave_requests_teacher ON leave_requests(teacher_id);
+  CREATE INDEX IF NOT EXISTS idx_book_copies_title ON book_copies(title_id);
+  CREATE INDEX IF NOT EXISTS idx_book_copies_status ON book_copies(status);
+  CREATE INDEX IF NOT EXISTS idx_book_titles_reading_level ON book_titles(reading_level);
+  CREATE INDEX IF NOT EXISTS idx_book_loans_copy ON book_loans(copy_id);
+  CREATE INDEX IF NOT EXISTS idx_book_loans_borrower ON book_loans(borrower_type, borrower_id);
+  CREATE INDEX IF NOT EXISTS idx_book_loans_returned ON book_loans(returned_at);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_book_loans_one_active_per_copy ON book_loans(copy_id) WHERE returned_at IS NULL;
 `;
 
 /* ============================== INIT (schema + migrations + seed) ============================== */
@@ -471,12 +571,27 @@ async function init() {
 
   const courseCount = (await db.get("SELECT COUNT(*) AS n FROM courses")).n;
   if (Number(courseCount) === 0) {
+    // "Courses" here means the school's grade levels (Nursery through Class
+    // 12) — the table/column names stayed as courses/course_group since the
+    // shape (name, code, seats, fee, admission fee, a grouping level) fits
+    // a class just as well as a college programme, and every route/join
+    // built on it keeps working unchanged.
     const defaults = [
-      ["c-ballb", "BACHELOR OF ARTS AND LAW", "BALLB", "5 Years", 120, 85000, 100, "Graduation"],
-      ["c-bballb", "BBA LLB (Integrated)", "BBALLB", "5 Years", 60, 90000, 100, "Graduation"],
-      ["c-llb", "BACHELOR OF LAW", "LLB", "3 Years", 100, 60000, 100, "Graduation"],
-      ["c-llm", "LLM", "LLM", "1 Year", 40, 50000, 150, "Post Graduation"],
-      ["c-dcl", "Diploma in Cyber Law", "DCL", "6 Months", 30, 15000, 50, "Diploma"],
+      ["c-nur", "Nursery", "NUR", "1 Year", 40, 25000, 5000, "Pre-Primary"],
+      ["c-lkg", "LKG", "LKG", "1 Year", 40, 26000, 5000, "Pre-Primary"],
+      ["c-ukg", "UKG", "UKG", "1 Year", 40, 27000, 5000, "Pre-Primary"],
+      ["c-c1", "Class 1", "I", "1 Year", 45, 30000, 6000, "Primary"],
+      ["c-c2", "Class 2", "II", "1 Year", 45, 30000, 6000, "Primary"],
+      ["c-c3", "Class 3", "III", "1 Year", 45, 31000, 6000, "Primary"],
+      ["c-c4", "Class 4", "IV", "1 Year", 45, 31000, 6000, "Primary"],
+      ["c-c5", "Class 5", "V", "1 Year", 45, 32000, 6000, "Primary"],
+      ["c-c6", "Class 6", "VI", "1 Year", 50, 34000, 7000, "Middle"],
+      ["c-c7", "Class 7", "VII", "1 Year", 50, 34000, 7000, "Middle"],
+      ["c-c8", "Class 8", "VIII", "1 Year", 50, 35000, 7000, "Middle"],
+      ["c-c9", "Class 9", "IX", "1 Year", 50, 38000, 8000, "Secondary"],
+      ["c-c10", "Class 10", "X", "1 Year", 50, 38000, 8000, "Secondary"],
+      ["c-c11", "Class 11", "XI", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+      ["c-c12", "Class 12", "XII", "1 Year", 40, 42000, 9000, "Senior Secondary"],
     ];
     for (const row of defaults) {
       await db.run(
@@ -484,7 +599,31 @@ async function init() {
         row
       );
     }
-    console.log("Seeded default courses.");
+    console.log("Seeded default classes (Nursery through Class 12).");
+  }
+
+  const librarySettingsCount = (await db.get("SELECT COUNT(*) AS n FROM library_settings")).n;
+  if (Number(librarySettingsCount) === 0) {
+    // Defaults follow the PRD's guidance directly: younger grades get short,
+    // simple loans with no monetary consequence (a hold once overdue, at
+    // most); fines only kick in for the oldest band, and only from a modest
+    // daily rate with a cap. All of this is editable per band afterward
+    // from Library → Settings — these are starting points, not a mandate.
+    const defaults = [
+      // [grade_band, loan_period_days, max_simultaneous_loans, consequence_type, daily_fine_rate, fine_cap, renewal_limit]
+      ["Pre-Primary", 7, 1, "none", 0, 0, 1],
+      ["Primary", 14, 2, "hold", 0, 0, 2],
+      ["Middle", 14, 3, "hold", 0, 0, 2],
+      ["Secondary", 14, 3, "hold", 0, 0, 2],
+      ["Senior Secondary", 21, 4, "fine", 2, 100, 3],
+    ];
+    for (const row of defaults) {
+      await db.run(
+        `INSERT INTO library_settings (grade_band, loan_period_days, max_simultaneous_loans, consequence_type, daily_fine_rate, fine_cap, renewal_limit) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        row
+      );
+    }
+    console.log("Seeded default library policy per grade band.");
   }
 
   const adminCount = (await db.get("SELECT COUNT(*) AS n FROM admins")).n;

@@ -1,4 +1,4 @@
-# Law College ERP — Full Stack Setup (Backend + PostgreSQL + Frontend)
+# School ERP — Full Stack Setup (Backend + PostgreSQL + Frontend)
 
 This package has two parts that both need to run at the same time:
 
@@ -6,7 +6,7 @@ This package has two parts that both need to run at the same time:
    is what makes data visible on any device — the database lives on ONE
    server, and every laptop/phone that talks to that server sees the same
    data, with real concurrent read/write support.
-2. **`law-college-erp.jsx`** — your React frontend, calling this backend
+2. **`school-erp.jsx`** — your React frontend, calling this backend
    over HTTP.
 
 > **Migrated from SQLite.** An earlier version of this project used Node's
@@ -38,7 +38,7 @@ Pick ONE of these:
 4. Once installed, open **pgAdmin** (installed alongside) or a terminal and
    create a database:
    ```sql
-   CREATE DATABASE law_college_erp;
+   CREATE DATABASE school_erp;
    ```
 
 ### Option B — Free hosted PostgreSQL (no local install — often simplest)
@@ -54,7 +54,7 @@ Copy the connection string they give you (looks like
 
 ### Option C — Docker (if you already use it)
 ```bash
-docker run --name erp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=law_college_erp -p 5432:5432 -d postgres:16
+docker run --name erp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=school_erp -p 5432:5432 -d postgres:16
 ```
 
 ---
@@ -81,7 +81,7 @@ You should see:
 Seeded default courses.
 Seeded default administrator account (username: admin / password: admin123 — change this after first login).
 
-  Law College ERP API running at http://localhost:4000
+  School ERP API running at http://localhost:4000
   Database: PostgreSQL (...)
 ```
 
@@ -98,7 +98,7 @@ the Postgres server itself is running.
 
 ## 4. Connect the frontend
 
-Copy `law-college-erp.jsx` into your existing project's `src/` folder
+Copy `school-erp.jsx` into your existing project's `src/` folder
 (replacing the old one), and make sure its dependencies are installed:
 ```bash
 npm install papaparse

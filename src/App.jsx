@@ -1,7 +1,7 @@
-import LawCollegeERP from "./law-college-erp";
+import SchoolERP from "./school-erp";
 
 function App() {
-  return <LawCollegeERP />;
+  return <SchoolERP />;
 }
 
 export default App;

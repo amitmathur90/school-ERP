@@ -62,6 +62,7 @@ app.use("/api/leave", require("./routes/leave"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/support", require("./routes/support"));
 app.use("/api/emails", require("./routes/emails"));
+app.use("/api/library", require("./routes/library"));
 
 app.get("/api/health", async (req, res) => {
   try {
@@ -98,12 +99,13 @@ const PORT = process.env.PORT || 4000;
 
 let server;
 const { checkAndSendFeeDueReminders } = require("./feeReminderService");
+const { checkAndSendLibraryReminders } = require("./libraryReminderService");
 
 db.init()
   .then(() => {
     server = app.listen(PORT, () => {
-      console.log(`\n  Law College ERP API running at http://localhost:${PORT}`);
-      console.log(`  Database: PostgreSQL (${process.env.DATABASE_URL ? "via DATABASE_URL" : `${process.env.PGHOST || "localhost"}/${process.env.PGDATABASE || "law_college_erp"}`})\n`);
+      console.log(`\n  School ERP API running at http://localhost:${PORT}`);
+      console.log(`  Database: PostgreSQL (${process.env.DATABASE_URL ? "via DATABASE_URL" : `${process.env.PGHOST || "localhost"}/${process.env.PGDATABASE || "school_erp"}`})\n`);
     });
 
     // Fee due-date reminders: check once at startup, then once a day.
@@ -117,6 +119,15 @@ db.init()
     setInterval(() => {
       checkAndSendFeeDueReminders().catch((e) => console.error("Scheduled fee reminder check failed:", e));
     }, 24 * 60 * 60 * 1000);
+
+    // Library due/overdue reminders run more often than the once-a-day fee
+    // check — loan periods (as short as 7 days for younger grades) are much
+    // shorter than typical fee due cycles, so a book can go from "fine" to
+    // "3 days overdue" within a single day if this only ran once daily.
+    checkAndSendLibraryReminders().catch((e) => console.error("Initial library reminder check failed:", e));
+    setInterval(() => {
+      checkAndSendLibraryReminders().catch((e) => console.error("Scheduled library reminder check failed:", e));
+    }, 6 * 60 * 60 * 1000);
   })
   .catch((e) => {
     console.error("\n  Could not start: failed to connect to / initialize PostgreSQL.");

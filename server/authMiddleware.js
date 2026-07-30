@@ -15,7 +15,7 @@ if (!process.env.JWT_SECRET) {
 // use the exact same vocabulary.
 const MODULES = [
   "overview", "admissions", "students", "teachers", "courses",
-  "fees", "reports", "notices", "attendance", "grades", "hr", "settings", "support",
+  "fees", "reports", "notices", "attendance", "grades", "hr", "settings", "support", "library",
 ];
 
 // Default module access per business role, used whenever that user doesn't
@@ -27,7 +27,8 @@ const DEFAULT_MODULES = {
   accounts: ["overview", "fees", "reports"],
   exam_incharge: ["overview", "grades", "reports"],
   hod: ["overview", "teachers", "students", "attendance", "grades"], // also department-scoped, enforced separately
-  faculty: ["overview", "students", "attendance", "grades", "notices"],
+  faculty: ["overview", "students", "attendance", "grades", "notices", "library"],
+  librarian: ["overview", "library"],
 };
 
 function effectivePermissions(user) {

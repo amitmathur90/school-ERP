@@ -13,14 +13,14 @@
 # secrets blank in the blueprint — you set them once in the dashboard).
 
 databases:
-  - name: law-college-erp-db
+  - name: school-erp-db
     plan: free                 # Render's free Postgres — fine to start; upgrade if you outgrow it
     region: oregon              # change to whichever region you deploy the services in
 
 services:
   # ---------------- Backend (Express API) ----------------
   - type: web
-    name: law-college-erp-api
+    name: school-erp-api
     runtime: node
     plan: free                  # Render's free web service plan (spins down when idle — fine for testing, upgrade for production)
     region: oregon
@@ -31,7 +31,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: law-college-erp-db
+          name: school-erp-db
           property: connectionString
       - key: NODE_ENV
         value: production
@@ -52,18 +52,18 @@ services:
       - key: SMTP_PASS
         sync: false              # Gmail App Password (myaccount.google.com/apppasswords) — not your normal Gmail password
       - key: SMTP_FROM_NAME
-        value: Sir Pratap Vidhi Mahavidyalaya
+        value: Greenwood Public School
 
   # ---------------- Frontend (static Vite build) ----------------
   - type: web
-    name: law-college-erp-frontend
+    name: school-erp-frontend
     runtime: static
     rootDir: .                   # <-- adjust if your frontend project lives in a subfolder of the repo (e.g. "frontend")
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false             # set this to https://law-college-erp-api.onrender.com/api (your backend service's URL + /api) after the backend is deployed once
+        sync: false             # set this to https://school-erp-api.onrender.com/api (your backend service's URL + /api) after the backend is deployed once
     routes:
       # Client-side routing fallback — without this, refreshing on any
       # non-root path 404s, since this is a single-page app.

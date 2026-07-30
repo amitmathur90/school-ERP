@@ -1,7 +1,7 @@
 {
-  "name": "law-college-erp-server",
+  "name": "school-erp-server",
   "version": "1.0.0",
-  "description": "Backend API + PostgreSQL database for the Law College ERP",
+  "description": "Backend API + PostgreSQL database for the School ERP",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
