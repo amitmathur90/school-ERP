@@ -5224,6 +5224,21 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const [viewingResultGroup, setViewingResultGroup] = useState(null);
   const student = store.students.find((s) => s.id === user.id);
 
+  // Right after login, `store` is still its empty initial state for a beat
+  // (loadAll() hasn't resolved yet), so `student` is briefly undefined on the
+  // very first render. This effect must stay above that early return —
+  // React requires the same hooks to run on every render of this component,
+  // and moving it below an early return that only sometimes fires would
+  // violate that (and crash — no error boundary wraps this tree — on the
+  // very next render once `student` becomes available).
+  useEffect(() => {
+    if (!student) return;
+    if (page !== "inbox") return;
+    const unread = store.messages.some((m) => m.toStudentId === student.id && !m.isRead);
+    if (unread) actions.markMessagesRead(student.id).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, student?.id]);
+
   if (!student) return null;
 
   const course = store.courses.find((c) => c.id === student.courseId);
@@ -5282,11 +5297,6 @@ function StudentPortal({ user, store, actions, onLogout }) {
   const unreadCount = myMessages.filter((m) => !m.isRead).length;
   const mySupportTickets = store.supportTickets.filter((t) => t.studentId === student.id);
   const supportUnread = mySupportTickets.filter((t) => t.studentUnread).length;
-
-  useEffect(() => {
-    if (page === "inbox" && unreadCount > 0) actions.markMessagesRead(student.id).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
 
   const nav = [
     { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
@@ -5886,6 +5896,10 @@ export default function App() {
     const res = await api.post("/auth/login", { role, id, password }); // throws with server error message on failure
     setAuthToken(res.token);
     setUser({ role: res.role, id: res.id, name: res.name, department: res.department || null, permissions: res.permissions || null });
+    // Show the same "Loading registry…" screen the page-refresh path shows,
+    // instead of letting the portal mount for a beat with `store` still at
+    // its empty initial state — loadAll() flips this back off when it's done.
+    setLoading(true);
     await loadAll();
     return res;
   };
