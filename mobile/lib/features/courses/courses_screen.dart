@@ -10,7 +10,7 @@ import '../../shared/models/course.dart';
 import '../admissions/admission.dart';
 import '../admissions/admissions_repository.dart';
 
-const _courseGroups = ['Pre-Primary', 'Primary', 'Middle', 'Secondary', 'Senior Secondary'];
+const _courseGroups = ['Graduation', 'Post Graduation', 'Diploma'];
 final _inr = NumberFormat.decimalPattern('en_IN');
 
 /// Mirrors CoursesManager (src/law-college-erp.jsx:3214): a grid of course
@@ -44,14 +44,14 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Class Name *', hintText: 'e.g. Class 5')),
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Course Name *', hintText: 'e.g. BA LLB (Integrated)')),
                 const SizedBox(height: 12),
-                TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Short Code *', hintText: 'e.g. V')),
+                TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Short Code *', hintText: 'e.g. BALLB')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: group,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Class Group *'),
+                  decoration: const InputDecoration(labelText: 'Course Group *'),
                   items: [for (final g in _courseGroups) DropdownMenuItem(value: g, child: Text(g))],
                   onChanged: (v) => setDialogState(() => group = v!),
                 ),
@@ -139,7 +139,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
     final isAdmin = session?.isAdmin ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Classes Offered')),
+      appBar: AppBar(title: const Text('Courses Offered')),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(onPressed: _busy ? null : _addCourse, icon: const Icon(Icons.add), label: const Text('Add Course'))
           : null,
@@ -178,7 +178,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${c.code} · ${c.group ?? 'Primary'}',
+                                    '${c.code} · ${c.group ?? 'Graduation'}',
                                     style: const TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                   ),
                                   const SizedBox(height: 4),

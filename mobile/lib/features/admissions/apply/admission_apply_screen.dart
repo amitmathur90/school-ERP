@@ -22,12 +22,12 @@ final _aadharRe = RegExp(r'^[0-9]{12}$');
 final _yearRe = RegExp(r'^\d{4}$');
 final _inr = NumberFormat.decimalPattern('en_IN');
 
-const _stepLabels = ['Basic & Personal', 'Address', 'Family Details', 'Education & Class', 'Academic & Documents'];
+const _stepLabels = ['Basic & Personal', 'Address', 'Family Details', 'Education & Course', 'Academic & Documents'];
 
 const _howKnowOptions = [
   'Newspaper', 'Television', 'Social Media', 'Friends & Family',
-  'School Website', 'Education Fair / Exhibition', 'Hoarding / Banner',
-  'School Reference', 'Other',
+  'College Website', 'Education Fair / Exhibition', 'Hoarding / Banner',
+  'School / College Reference', 'Other',
 ];
 
 const _indiaStates = [
@@ -41,17 +41,19 @@ const _indiaStates = [
 ];
 
 const _occupations = ['Govt.', 'Private', 'Business', 'Others'];
-const _courseGroups = ['Pre-Primary', 'Primary', 'Middle', 'Secondary', 'Senior Secondary'];
-const _academicNameOptions = ['Previous Class Report Card', '10th Board', '12th Board', 'Other'];
+const _courseGroups = ['Graduation', 'Post Graduation', 'Diploma'];
+const _academicNameOptions = ['10th', '12th', 'Graduation', 'Post Graduation', 'Diploma', 'Other'];
 const _documentTypes = [
-  'Report Card / Transfer Certificate', '10th Marksheet', '12th Marksheet',
-  'Birth Certificate', 'Transfer Certificate', 'Migration Certificate', 'Character Certificate',
+  '10th Marksheet', '12th Marksheet', 'Graduation Marksheet', 'Graduation Certificate',
+  'Transfer Certificate', 'Migration Certificate', 'Character Certificate',
   'Aadhar Card', 'Category Certificate', 'Income Certificate', 'Photo', 'Signature', 'Other',
 ];
 const _academicToDocumentTypes = {
-  'Previous Class Report Card': ['Report Card / Transfer Certificate'],
-  '10th Board': ['10th Marksheet'],
-  '12th Board': ['12th Marksheet'],
+  '10th': ['10th Marksheet'],
+  '12th': ['12th Marksheet'],
+  'Graduation': ['Graduation Marksheet', 'Graduation Certificate'],
+  'Post Graduation': ['Graduation Marksheet', 'Graduation Certificate'],
+  'Diploma': ['Other'],
   'Other': ['Other'],
 };
 
@@ -61,7 +63,7 @@ Map<String, String> _blankFields() => {
       'firstName': '', 'firstNameHi': '', 'middleName': '', 'middleNameHi': '', 'lastName': '', 'lastNameHi': '',
       'gender': 'Male', 'email': '', 'phone': '', 'howKnow': '', 'emergencyMobile': '', 'whatsapp': '', 'aadhar': '',
       'password': '', 'confirm': '',
-      'dob': '', 'caste': 'General',
+      'dob': '', 'maritalStatus': 'Unmarried', 'spouseName': '', 'spousePhone': '', 'caste': 'General',
       'photoData': '', 'photoName': '', 'signatureData': '', 'signatureName': '',
       'permanentAddress': '', 'contactNo': '', 'mobileNo': '', 'country': 'India', 'state': '', 'city': '', 'pinCode': '',
       'stateDomicile': '', 'addressType': 'same', 'currentAddress': '', 'currentCity': '', 'currentState': '', 'currentPinCode': '',
@@ -71,7 +73,7 @@ Map<String, String> _blankFields() => {
       'motherEmail': '', 'motherOccupation': 'Govt.', 'motherOrg': '', 'motherPost': '',
       'guardianName': '', 'guardianRelation': '', 'guardianPhoneResi': '', 'guardianMobile': '',
       'lastInstitution': '', 'lastExamYear': '', 'lastExamPercentage': '', 'resultStatus': 'Pass', 'gapInStudy': 'No',
-      'lateralEntry': 'No', 'courseGroup': 'Primary', 'courseId': '', 'amount': '', 'medium': 'English', 'remarks': '',
+      'lateralEntry': 'No', 'courseGroup': 'Graduation', 'courseId': '', 'amount': '', 'medium': 'English', 'remarks': '',
     };
 
 class _AcademicRow {
@@ -191,6 +193,10 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
       if (f['dob']!.isEmpty) return 'Please enter your date of birth.';
       final d = DateTime.tryParse(f['dob']!);
       if (d == null || d.isAfter(DateTime.now())) return 'Please enter a valid date of birth.';
+      if (f['maritalStatus'] == 'Married' && (f['spouseName']!.trim().isEmpty || f['spousePhone']!.trim().isEmpty)) {
+        return "Please enter spouse name and phone number.";
+      }
+      if (f['spousePhone']!.trim().isNotEmpty && !_phoneRe.hasMatch(f['spousePhone']!.trim())) return 'Spouse phone number must be exactly 10 digits.';
       if (_fileErr['photo']!.isNotEmpty || _fileErr['signature']!.isNotEmpty) return 'Please fix the file upload errors before continuing.';
       return '';
     }
@@ -278,6 +284,11 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         }
       }
       if (f['dob']!.isEmpty) fe['dob'] = 'Required';
+      if (f['maritalStatus'] == 'Married') {
+        if (f['spouseName']!.trim().isEmpty) fe['spouseName'] = 'Required';
+        if (f['spousePhone']!.trim().isEmpty) fe['spousePhone'] = 'Required';
+      }
+      if (f['spousePhone']!.trim().isNotEmpty && !_phoneRe.hasMatch(f['spousePhone']!.trim())) fe['spousePhone'] = 'Must be 10 digits';
     } else if (s == 2) {
       if (f['permanentAddress']!.trim().isEmpty) fe['permanentAddress'] = 'Required';
       if (f['contactNo']!.trim().isEmpty) {
@@ -578,7 +589,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         'amount': order.amountPaise,
         'order_id': order.orderId,
         'currency': order.currency,
-        'name': 'Greenwood Public School',
+        'name': 'SPVM Law College',
         'description': 'Admission Fee Payment',
         'prefill': {
           if (order.studentEmail != null) 'email': order.studentEmail,
@@ -715,7 +726,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         ApplyChoiceRow(label: 'Gender', required: true, value: _f['gender']!, options: const ['Male', 'Female', 'Transgender'], onChanged: (v) => _set('gender', v)),
         ApplyField(label: 'Email Address', required: true, initialValue: _f['email'], error: fe['email'], keyboardType: TextInputType.emailAddress, enabled: _draftId == null, onChanged: (v) => _set('email', v)),
         ApplyField(label: 'Phone Number', required: true, initialValue: _f['phone'], error: fe['phone'], keyboardType: TextInputType.phone, onChanged: (v) => _set('phone', v)),
-        ApplyDropdown(label: 'How did you know about us?', required: true, value: _f['howKnow'], options: _howKnowOptions, error: fe['howKnow'], onChanged: (v) => _set('howKnow', v ?? '')),
+        ApplyDropdown(label: 'How did you know about SPVM?', required: true, value: _f['howKnow'], options: _howKnowOptions, error: fe['howKnow'], onChanged: (v) => _set('howKnow', v ?? '')),
         ApplyField(label: 'Emergency Mobile No.', required: true, initialValue: _f['emergencyMobile'], error: fe['emergencyMobile'], keyboardType: TextInputType.phone, onChanged: (v) => _set('emergencyMobile', v)),
         ApplyField(label: 'WhatsApp No.', initialValue: _f['whatsapp'], error: fe['whatsapp'], keyboardType: TextInputType.phone, onChanged: (v) => _set('whatsapp', v)),
         ApplyField(label: 'Aadhar Number', initialValue: _f['aadhar'], error: fe['aadhar'], keyboardType: TextInputType.number, onChanged: (v) => _set('aadhar', v)),
@@ -752,6 +763,11 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
             ),
           ),
         ),
+        ApplyChoiceRow(label: 'Marital Status', required: true, value: _f['maritalStatus']!, options: const ['Unmarried', 'Married'], onChanged: (v) => _set('maritalStatus', v)),
+        if (_f['maritalStatus'] == 'Married') ...[
+          ApplyField(label: 'Spouse Name', required: true, initialValue: _f['spouseName'], error: fe['spouseName'], onChanged: (v) => _set('spouseName', v)),
+          ApplyField(label: 'Spouse Phone Number', required: true, initialValue: _f['spousePhone'], error: fe['spousePhone'], keyboardType: TextInputType.phone, onChanged: (v) => _set('spousePhone', v)),
+        ],
         ApplyChoiceRow(label: 'Caste Category', required: true, value: _f['caste']!, options: const ['General', 'OBC', 'SC', 'ST', 'EWS'], onChanged: (v) => _set('caste', v)),
         const SectionLabel('Uploads'),
         _FileUploadTile(label: 'Photo', hint: 'JPG / JPEG / PNG, under 512KB', fileName: _f['photoName']!, error: _fileErr['photo']!, onPick: () => _pickPhotoOrSignature('photo')),
@@ -839,7 +855,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
   Widget _buildStep4(Map<String, String> fe) {
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.valueOrNull ?? const <Course>[];
-    final groupCourses = courses.where((c) => (c.group ?? 'Primary') == _f['courseGroup']).toList();
+    final groupCourses = courses.where((c) => (c.group ?? 'Graduation') == _f['courseGroup']).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -852,14 +868,14 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         ApplyChoiceRow(label: 'Gap Between Study', value: _f['gapInStudy']!, options: const ['No', 'Yes'], onChanged: (v) => _set('gapInStudy', v)),
         ApplyChoiceRow(label: 'Lateral Entry', value: _f['lateralEntry']!, options: const ['No', 'Yes'], onChanged: (v) => _set('lateralEntry', v)),
         ApplyChoiceRow(label: 'Medium', required: true, value: _f['medium']!, options: const ['English', 'Hindi'], onChanged: (v) => _set('medium', v)),
-        const SectionLabel('Class Selection'),
+        const SectionLabel('Course Selection'),
         if (fe['courseId'] != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(fe['courseId']!, style: const TextStyle(color: AppColors.danger, fontSize: 11.5))),
         ApplyDropdown(
-          label: 'Class Group',
+          label: 'Course Group',
           value: _f['courseGroup'],
           options: _courseGroups,
           onChanged: (v) => setState(() {
-            _f['courseGroup'] = v ?? 'Primary';
+            _f['courseGroup'] = v ?? 'Graduation';
             _f['courseId'] = '';
             _f['amount'] = '';
             _dirty = true;
@@ -912,7 +928,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         const SectionLabel('Academic Details', topPad: 0),
         const Padding(
           padding: EdgeInsets.only(bottom: 12),
-          child: Text("Add your previous school/class records, if any (e.g. previous class report card, 10th/12th board result) — you'll need to upload a matching document below for each one.", style: TextStyle(fontSize: 12.5, color: AppColors.slate)),
+          child: Text("Add every qualifying exam you've passed (e.g. 10th, 12th, Graduation) — you'll need to upload a matching document below for each one.", style: TextStyle(fontSize: 12.5, color: AppColors.slate)),
         ),
         for (final r in _academicRows) _AcademicRowCard(row: r, onChanged: () => setState(() => _dirty = true), onRemove: _academicRows.length > 1 ? () => setState(() => _academicRows.remove(r)) : null),
         Padding(
@@ -994,7 +1010,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
                   onChanged: (v) => setState(() => _agreeTerms = v ?? false),
                   title: const Text('I agree to the terms and conditions.', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   subtitle: const Text(
-                    'मैंने विद्यालय की प्रवेश नीति एवं नियमों को पढ़ लिया है, यह स्वीकार्य है, तथा इस प्रार्थना पत्र में दी गई समस्त जानकारी सत्य एवं सही है। यदि कोई जानकारी असत्य पाई जाती है, तो विद्यालय मेरा प्रवेश निरस्त करने का अधिकार रखता है।\n\nI have read and accept the school\'s admission policy and rules, will abide by them, and declare that all information in this application is true and correct.',
+                    'मैंने महाविद्यालय की प्रवेश नीति एवं नियमों को पढ़ लिया है, यह स्वीकार्य है, तथा इस प्रार्थना पत्र में दी गई समस्त जानकारी सत्य एवं सही है। यदि कोई जानकारी असत्य पाई जाती है, तो महाविद्यालय मेरा प्रवेश निरस्त करने का अधिकार रखता है।\n\nI have read and accept the college\'s admission policy and rules, will abide by them, and declare that all information in this application is true and correct.',
                     style: TextStyle(fontSize: 12, color: AppColors.slate),
                   ),
                 ),

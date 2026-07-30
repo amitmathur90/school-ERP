@@ -14,7 +14,6 @@ import '../../shared/widgets/stat_card.dart';
 import '../admissions/admission.dart';
 import '../admissions/admission_detail_screen.dart';
 import '../admissions/admissions_repository.dart';
-import '../library/library_browse_screen.dart';
 import '../notices/notices_list.dart';
 import '../notices/notices_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -42,14 +41,14 @@ class StudentHomeScreen extends ConsumerWidget {
     return admissionsAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('School ERP')),
+        appBar: AppBar(title: const Text('SPVM Law College ERP')),
         body: Center(child: Text('Could not load your record: $error')),
       ),
       data: (all) {
         final me = all.where((a) => a.id == session.id).firstOrNull;
         if (me == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('School ERP')),
+            appBar: AppBar(title: const Text('SPVM Law College ERP')),
             body: const Center(child: Text('Your student record could not be found.')),
           );
         }
@@ -84,7 +83,7 @@ class _DraftScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Please finish and submit your application on the Greenwood Public School website to continue.',
+                'Please finish and submit your application on the SPVM Law College website to continue.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.slate),
               ),
@@ -109,7 +108,7 @@ class _PendingOrRejectedScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isPending = student.status == AdmissionStatus.pending;
     return Scaffold(
-      appBar: AppBar(title: const Text('School ERP')),
+      appBar: AppBar(title: const Text('SPVM Law College ERP')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -207,7 +206,7 @@ class _ApprovedStudentHome extends ConsumerWidget {
                         ),
                         const Expanded(
                           child: Text(
-                            'School ERP',
+                            'SPVM Law College ERP',
                             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 17),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -362,8 +361,7 @@ class _StudentDrawer extends ConsumerWidget {
           item(Icons.fact_check_outlined, 'Attendance', StudentAttendanceScreen(studentId: student.id)),
           item(Icons.grade_outlined, 'Grades', ResultScreen(studentId: student.id)),
           item(Icons.account_balance_wallet_outlined, 'Fees & Payments', StudentFeesScreen(studentId: student.id, studentName: student.name)),
-          item(Icons.menu_book_outlined, 'Classes', StudentCoursesScreen(myCourseId: student.courseId)),
-          item(Icons.local_library_outlined, 'Library', LibraryBrowseScreen(isStudent: true, studentId: student.id)),
+          item(Icons.menu_book_outlined, 'Courses', StudentCoursesScreen(myCourseId: student.courseId)),
           item(Icons.notifications_outlined, 'Notifications', const NotificationsScreen()),
           item(Icons.campaign_outlined, 'Notice Board', const NoticesScreen()),
           item(Icons.support_agent_outlined, 'Support', const SupportListScreen()),

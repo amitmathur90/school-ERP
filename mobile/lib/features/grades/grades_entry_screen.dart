@@ -76,7 +76,7 @@ class _GradesEntryScreenState extends ConsumerState<GradesEntryScreen> {
                       DropdownButtonFormField<String>(
                         value: _courseId,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Class'),
+                        decoration: const InputDecoration(labelText: 'Course'),
                         items: [for (final c in courses) DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis))],
                         onChanged: (v) => setState(() => _courseId = v),
                       ),

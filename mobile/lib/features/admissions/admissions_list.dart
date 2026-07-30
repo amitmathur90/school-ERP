@@ -104,11 +104,11 @@ class _AdmissionsListScreenState extends ConsumerState<AdmissionsListScreen> {
                       constraints: const BoxConstraints(maxWidth: 130),
                       child: DropdownButton<String?>(
                         value: _courseId,
-                        hint: const Text('Class'),
+                        hint: const Text('Course'),
                         isExpanded: true,
                         underline: const SizedBox.shrink(),
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('All Classes', overflow: TextOverflow.ellipsis)),
+                          const DropdownMenuItem(value: null, child: Text('All Courses', overflow: TextOverflow.ellipsis)),
                           for (final c in courses)
                             DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
                         ],

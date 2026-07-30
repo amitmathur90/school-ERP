@@ -165,9 +165,9 @@ class _FeesListScreenState extends ConsumerState<FeesListScreen> {
                         value: _courseId,
                         isDense: true,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Class'),
+                        decoration: const InputDecoration(labelText: 'Course'),
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('All Classes', overflow: TextOverflow.ellipsis)),
+                          const DropdownMenuItem(value: null, child: Text('All Courses', overflow: TextOverflow.ellipsis)),
                           for (final c in courses)
                             DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
                         ],

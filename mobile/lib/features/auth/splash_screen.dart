@@ -18,7 +18,7 @@ class SplashScreen extends StatelessWidget {
           children: [
             CircularProgressIndicator(color: AppColors.maroon),
             SizedBox(height: 16),
-            Text('School ERP', style: TextStyle(color: AppColors.ink)),
+            Text('SPVM Law College ERP', style: TextStyle(color: AppColors.ink)),
           ],
         ),
       ),

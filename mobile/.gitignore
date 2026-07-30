@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Machine-specific local SDK paths — never portable across machines
+android/local.properties
+local.properties
+
+# Ad-hoc run logs left in the project root during development
+*_run_out*.log
+*_run_err*.log

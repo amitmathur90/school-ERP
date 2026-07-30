@@ -136,7 +136,7 @@ class _TeacherFormScreenState extends ConsumerState<TeacherFormScreen> {
             onChanged: (v) => setState(() => _gender = v!),
           ),
           const SizedBox(height: 12),
-          TextField(controller: _qualification, decoration: const InputDecoration(labelText: 'Qualification', hintText: 'e.g. B.Ed, M.Ed')),
+          TextField(controller: _qualification, decoration: const InputDecoration(labelText: 'Qualification', hintText: 'e.g. LLM, PhD')),
           const SizedBox(height: 12),
           TextField(controller: _experience, decoration: const InputDecoration(labelText: 'Experience', hintText: 'e.g. 8 years')),
           const SizedBox(height: 12),

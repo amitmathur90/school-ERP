@@ -71,7 +71,6 @@ const staffRoles = [
   ('exam_incharge', 'Examination Incharge'),
   ('accounts', 'Accounts'),
   ('hr', 'HR'),
-  ('librarian', 'Librarian'),
 ];
 
 String staffRoleLabel(String value) => staffRoles.firstWhere((r) => r.$1 == value, orElse: () => (value, value)).$2;

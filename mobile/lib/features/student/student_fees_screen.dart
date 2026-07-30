@@ -78,8 +78,8 @@ class _StudentFeesScreenState extends ConsumerState<StudentFeesScreen> {
       'amount': order.amountPaise,
       'order_id': order.orderId,
       'currency': order.currency,
-      'name': 'Greenwood Public School',
-      'description': 'Class Fee Payment',
+      'name': 'SPVM Law College',
+      'description': 'Course Fee Payment',
       'prefill': {
         if (order.studentEmail != null) 'email': order.studentEmail,
         if (order.studentPhone != null) 'contact': order.studentPhone,

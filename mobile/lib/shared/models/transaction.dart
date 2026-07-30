@@ -41,5 +41,5 @@ class PaymentTransaction {
   final String? recordedByRole;
   final String? purpose;
 
-  String get purposeLabel => purpose == 'admission' ? 'Admission Fee' : 'Class Fee';
+  String get purposeLabel => purpose == 'admission' ? 'Admission Fee' : 'Course Fee';
 }

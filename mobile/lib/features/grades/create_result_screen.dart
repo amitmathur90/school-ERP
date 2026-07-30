@@ -5,7 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/grades_repository.dart';
 import '../../core/theme.dart';
 
-const examTypes = ['Unit Test', 'Mid-Term', 'Final Exam', 'Class Test', 'Annual Exam'];
+const examTypes = ['Internal Assessment', 'Mid-Term', 'End-Term', 'Moot Court', 'Viva Voce'];
 
 class _SubjectRow {
   _SubjectRow();

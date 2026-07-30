@@ -16,7 +16,7 @@ class ErpApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'School ERP',
+      title: 'SPVM Law College ERP',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,

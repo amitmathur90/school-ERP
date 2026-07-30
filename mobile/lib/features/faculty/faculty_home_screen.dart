@@ -12,7 +12,6 @@ import '../admissions/admissions_repository.dart';
 import '../attendance/attendance_marking_screen.dart';
 import '../fees/fees_list_screen.dart';
 import '../grades/grades_entry_screen.dart';
-import '../library/library_browse_screen.dart';
 import '../notices/notices_list.dart';
 import '../notices/notices_repository.dart';
 import '../notices/notices_screen.dart';
@@ -66,7 +65,7 @@ class FacultyHomeScreen extends ConsumerWidget {
                         ),
                         const Expanded(
                           child: Text(
-                            'School ERP',
+                            'SPVM Law College ERP',
                             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 17),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -270,7 +269,6 @@ class _FacultyDrawer extends ConsumerWidget {
           item(Icons.grade_outlined, 'Grades', const GradesEntryScreen()),
           item(Icons.account_balance_wallet_outlined, 'Fees', const FeesListScreen()),
           item(Icons.campaign_outlined, 'Notices', const NoticesScreen()),
-          item(Icons.local_library_outlined, 'Library', const LibraryBrowseScreen(isStudent: false)),
         ],
       ),
     );

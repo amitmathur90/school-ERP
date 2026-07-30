@@ -15,7 +15,6 @@ import '../courses/courses_screen.dart';
 import '../faculty/faculty_home_screen.dart';
 import '../fees/fees_list_screen.dart';
 import '../grades/grades_entry_screen.dart';
-import '../library/library_admin_screen.dart';
 import '../notices/notices_list.dart';
 import '../notices/notices_repository.dart';
 import '../notices/notices_screen.dart';
@@ -43,7 +42,6 @@ const _moduleScreens = <String, WidgetBuilder>{
   'attendance': _openAttendance,
   'support': _openSupport,
   'grades': _openGrades,
-  'library': _openLibrary,
 };
 
 const _moduleIcons = <String, IconData>{
@@ -60,7 +58,6 @@ const _moduleIcons = <String, IconData>{
   'grades': Icons.grade_outlined,
   'hr': Icons.badge_outlined,
   'settings': Icons.lock_outline,
-  'library': Icons.local_library_outlined,
 };
 
 const _moduleLabels = <String, String>{
@@ -68,7 +65,7 @@ const _moduleLabels = <String, String>{
   'admissions': 'Admissions Registry',
   'students': 'Students',
   'teachers': 'Faculty & Staff',
-  'courses': 'Classes',
+  'courses': 'Courses',
   'fees': 'Fees',
   'reports': 'Reports',
   'notices': 'Notices',
@@ -77,7 +74,6 @@ const _moduleLabels = <String, String>{
   'grades': 'Grades',
   'hr': 'HR',
   'settings': 'Staff Accounts',
-  'library': 'Library',
 };
 
 const _roleLabels = {
@@ -88,7 +84,6 @@ const _roleLabels = {
   'exam_incharge': 'Examination Incharge',
   'hod': 'Head of Department',
   'faculty': 'Faculty',
-  'librarian': 'Librarian',
   'student': 'Student',
 };
 
@@ -103,7 +98,6 @@ Widget _openNotices(BuildContext context) => const NoticesScreen();
 Widget _openAttendance(BuildContext context) => const AttendanceMarkingScreen();
 Widget _openSupport(BuildContext context) => const SupportListScreen();
 Widget _openGrades(BuildContext context) => const GradesEntryScreen();
-Widget _openLibrary(BuildContext context) => const LibraryAdminScreen();
 
 final _inr = NumberFormat.decimalPattern('en_IN');
 
@@ -261,7 +255,7 @@ class _Header extends ConsumerWidget {
               ),
               const Expanded(
                 child: Text(
-                  'School ERP',
+                  'SPVM Law College ERP',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 17),
                   overflow: TextOverflow.ellipsis,
                 ),

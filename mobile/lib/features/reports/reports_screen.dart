@@ -23,7 +23,7 @@ const _reportTabs = [
   ('fee', 'Fee Report'),
   ('emi', 'EMI Report'),
   ('pendingFee', 'Pending Fee'),
-  ('courseWise', 'Class-Wise Report'),
+  ('courseWise', 'Course-Wise Report'),
   ('daily', 'Daily Collection'),
 ];
 
@@ -177,9 +177,9 @@ class _CourseDropdown extends StatelessWidget {
       value: value,
       isDense: true,
       isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Class'),
+      decoration: const InputDecoration(labelText: 'Course'),
       items: [
-        const DropdownMenuItem(value: null, child: Text('All Classes', overflow: TextOverflow.ellipsis)),
+        const DropdownMenuItem(value: null, child: Text('All Courses', overflow: TextOverflow.ellipsis)),
         for (final c in courses) DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
       ],
       onChanged: onChanged,
@@ -231,7 +231,7 @@ class _AdmissionReportState extends State<_AdmissionReport> {
           Expanded(child: _CourseDropdown(courses: widget.courses, value: _courseId, onChanged: (v) => setState(() => _courseId = v))),
         ],
       ),
-      columns: const ['Applied Date', 'Name', 'Email', 'Phone', 'Class', 'Category', 'Status', 'Roll No'],
+      columns: const ['Applied Date', 'Name', 'Email', 'Phone', 'Course', 'Category', 'Status', 'Roll No'],
       rows: [
         for (final s in list)
           [
@@ -282,7 +282,7 @@ class _StudentReportState extends State<_StudentReport> {
 
     return _ReportTable(
       filters: _CourseDropdown(courses: widget.courses, value: _courseId, onChanged: (v) => setState(() => _courseId = v)),
-      columns: const ['Roll No', 'Name', 'Class', 'Gender', 'Category', 'Email', 'Phone', 'Attendance %', 'DOB'],
+      columns: const ['Roll No', 'Name', 'Course', 'Gender', 'Category', 'Email', 'Phone', 'Attendance %', 'DOB'],
       rows: [
         for (final s in list)
           [
@@ -349,7 +349,7 @@ class _FeeReportState extends State<_FeeReport> {
         ],
       ),
       footerNote: 'Total Collected: ${_money(total)}',
-      columns: const ['Roll No', 'Name', 'Class', 'Total Fee', 'Paid', 'Balance', 'Status'],
+      columns: const ['Roll No', 'Name', 'Course', 'Total Fee', 'Paid', 'Balance', 'Status'],
       rows: [
         for (final s in list)
           [
@@ -379,7 +379,7 @@ class _EmiReport extends StatelessWidget {
     final list = students.where((s) => s.status == AdmissionStatus.approved && feeByStudent[s.id]?.plan != null).toList();
 
     return _ReportTable(
-      columns: const ['Roll No', 'Name', 'Class', 'Total EMI', 'Tenure (Mo.)', 'Installment', 'EMIs Paid', 'Remaining', 'Remaining Amt'],
+      columns: const ['Roll No', 'Name', 'Course', 'Total EMI', 'Tenure (Mo.)', 'Installment', 'EMIs Paid', 'Remaining', 'Remaining Amt'],
       rows: [
         for (final s in list)
           () {
@@ -421,7 +421,7 @@ class _PendingFeeReport extends StatelessWidget {
 
     return _ReportTable(
       footerNote: entries.isEmpty ? null : 'Total Outstanding: ${_money(total)}',
-      columns: const ['Roll No', 'Name', 'Class', 'Phone', 'Total Fee', 'Paid', 'Balance'],
+      columns: const ['Roll No', 'Name', 'Course', 'Phone', 'Total Fee', 'Paid', 'Balance'],
       rows: [
         for (final e in entries)
           [
@@ -450,7 +450,7 @@ class _CourseWiseReport extends StatelessWidget {
     final approved = students.where((s) => s.status == AdmissionStatus.approved).toList();
 
     return _ReportTable(
-      columns: const ['Class', 'Group', 'Total Seats', 'Enrolled', 'Available', 'Fee Collected', 'Fee Pending'],
+      columns: const ['Course', 'Group', 'Total Seats', 'Enrolled', 'Available', 'Fee Collected', 'Fee Pending'],
       rows: [
         for (final c in courses)
           () {
@@ -460,7 +460,7 @@ class _CourseWiseReport extends StatelessWidget {
             final pending = enrolled.fold<num>(0, (sum, s) => sum + (feeByStudent[s.id]?.balance ?? 0));
             return [
               c.name,
-              c.group ?? 'Primary',
+              c.group ?? 'Graduation',
               '$seats',
               '${enrolled.length}',
               '${(seats - enrolled.length).clamp(0, seats)}',

@@ -80,7 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Greenwood Public School',
+                        'SPVM Law College',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),

@@ -18,7 +18,7 @@ class StudentCoursesScreen extends ConsumerWidget {
     final coursesAsync = ref.watch(coursesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Classes Offered')),
+      appBar: AppBar(title: const Text('Courses Offered')),
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Could not load courses: $error')),
@@ -43,7 +43,7 @@ class StudentCoursesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${c.code} · ${c.group ?? 'Primary'}${isMine ? ' · Your Class' : ''}',
+                          '${c.code} · ${c.group ?? 'Graduation'}${isMine ? ' · Your Programme' : ''}',
                           style: TextStyle(color: isMine ? AppColors.gold : AppColors.slate, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
