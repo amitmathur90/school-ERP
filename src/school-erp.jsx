@@ -1265,13 +1265,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     setPaying(false);
   };
 
-  // Nursery/Play Group applicants have no prior schooling, so the "Educational
-  // Details" section (last institution/exam/result) doesn't apply to them.
-  // Play Group applicants additionally have no academic records to speak of,
-  // so the Academic Details + Documents section is skipped entirely for them.
+  // Nursery/Play Group applicants are freshers with no prior schooling, so
+  // neither the "Educational Details" section (last institution/exam/result)
+  // nor the Academic Details + Documents section applies to them.
   const selectedCourseName = (courses.find((c) => c.id === f.courseId) || {}).name || "";
   const isNurseryOrPlayGroup = selectedCourseName === "Nursery" || selectedCourseName === "Play Group";
-  const isPlayGroupClass = selectedCourseName === "Play Group";
 
   const validateStep = (s) => {
     if (s === 1) {
@@ -1323,7 +1321,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       return "";
     }
     if (s === 5) {
-      if (!isPlayGroupClass) {
+      if (!isNurseryOrPlayGroup) {
         const complete = academicRows.filter((r) => r.name && r.board.trim() && r.passingYear.trim());
         if (complete.length === 0) return "Add at least one academic record with Name, Board/University, and Passing Year filled in.";
         if (documentRows.some((r) => r.uploading)) return "Please wait for the current upload to finish.";
@@ -1681,12 +1679,12 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
 
           {step === 5 && (
             <>
-              {isPlayGroupClass && (
+              {isNurseryOrPlayGroup && (
                 <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
-                  No prior academic records or documents are required for Play Group admission.
+                  No prior academic records or documents are required for {selectedCourseName} admission.
                 </p>
               )}
-              {!isPlayGroupClass && (
+              {!isNurseryOrPlayGroup && (
                 <>
               <div className="eyebrow" style={{ marginBottom: 10 }}>Academic Details</div>
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -4, marginBottom: 14 }}>
