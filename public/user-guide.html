@@ -397,6 +397,34 @@
   ol.steps li strong { display: block; color: var(--ink); margin-bottom: 0.15rem; }
   ol.steps li p { margin: 0.2rem 0 0; color: var(--ink-soft); font-size: 0.95rem; }
 
+  /* ---------- Screenshots ---------- */
+  figure.shot {
+    margin: 1.3rem 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow);
+    max-width: 720px;
+  }
+  figure.shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  figure.shot figcaption {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+  }
+  .shot-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .shot-row figure.shot { flex: 1 1 320px; max-width: 380px; margin: 1.3rem 0; }
+
   /* ---------- Not-built list ---------- */
   ul.gaps { list-style: none; margin: 1rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
   ul.gaps li {
@@ -565,6 +593,11 @@
       <h2>Logging in</h2>
       <p class="lede">The sign-in screen has four tabs. Pick the one that matches who you are — the app then reads your actual account role from the server and sends you to the right dashboard automatically.</p>
 
+      <figure class="shot">
+        <img src="/screenshots/login.jpg" alt="School ERP sign-in screen showing the Student, Parent, Staff, and Administrator tabs, with an Email Address and Password field and a Sign In button." loading="lazy" />
+        <figcaption>The sign-in screen — four tabs, each routing to a different dashboard.</figcaption>
+      </figure>
+
       <div class="table-wrap">
         <table class="data">
           <thead><tr><th>Tab</th><th>Who it's for</th><th>You sign in with</th></tr></thead>
@@ -633,6 +666,11 @@
       <h2>Applying for admission</h2>
       <p class="lede">Prospective students apply through a five-step form — no account needed until the very end. Click <strong>Apply for Admission</strong> under the Student tab on the sign-in screen to start.</p>
 
+      <figure class="shot">
+        <img src="/screenshots/admission-form.png" alt="Admission wizard Step 1, Basic and Personal Details, showing the 5-step indicator across the top and fields for name, gender, email, phone, and portal login password." loading="lazy" />
+        <figcaption>Step 1 of 5 — Basic &amp; Personal Details. The step indicator across the top tracks progress through all five steps.</figcaption>
+      </figure>
+
       <ol class="steps">
         <li>
           <strong>Basic &amp; Personal Details</strong>
@@ -682,6 +720,11 @@
     <section class="block" id="role-admin">
       <div class="role-head"><span class="role-pill">Super Admin</span><span class="role-pill">Admin</span><h3>Super Admin &amp; Admin</h3></div>
       <p>Super Admin is the top of the hierarchy — it can't be edited, restricted, or deleted by anyone, including another Super Admin. Admin accounts have full access by default, but Super Admin can restrict exactly which modules a given Admin can use; that Admin's sidebar automatically shows only what they've been granted.</p>
+
+      <figure class="shot">
+        <img src="/screenshots/admin-overview.png" alt="Administrator dashboard showing the full sidebar (Overview, Admissions Registry, Students, Faculty & Staff, Classes, Fees, Reports, Notices, Library, Parents, Support, Staff Accounts) and the Institution Overview page with stat cards for enrolled students, pending admissions, faculty members, and fees collected." loading="lazy" />
+        <figcaption>The Administrator dashboard — full sidebar on the left, Institution Overview on the right.</figcaption>
+      </figure>
 
       <dl class="feat">
         <div><dt>Overview</dt><dd>Enrolled students, pending admissions, faculty count, and fees collected at a glance, plus a feed of recent notices.</dd></div>
@@ -736,6 +779,12 @@
 
     <section class="block" id="role-student">
       <div class="role-head"><span class="role-pill">Student</span><h3>Student</h3></div>
+
+      <figure class="shot">
+        <img src="/screenshots/student-portal.png" alt="Student dashboard showing a welcome header, stat cards for Class, Attendance, and Fee Balance, a Payment Pending banner, and Latest Notices / Notifications panels." loading="lazy" />
+        <figcaption>A student's Overview page after logging in.</figcaption>
+      </figure>
+
       <dl class="feat">
         <div><dt>Overview</dt><dd>Your dashboard home.</dd></div>
         <div><dt>My Application</dt><dd>A read-only summary of the admission form you submitted.</dd></div>
@@ -755,6 +804,11 @@
       <div class="role-head"><span class="role-pill">Parent</span><h3>Parent</h3></div>
       <p>Read-only, by design — a parent can see everything about their own linked child, but can't issue a book, mark attendance, record a payment, or edit anything. If you have more than one child at the school, a switcher at the top of every page lets you pick which one you're viewing.</p>
 
+      <figure class="shot">
+        <img src="/screenshots/login-parent-tab.jpg" alt="Sign-in screen with the Parent tab selected, showing Email Address and Password fields and a note that parent accounts are created by the Administrator." loading="lazy" />
+        <figcaption>The Parent tab on the sign-in screen.</figcaption>
+      </figure>
+
       <h3>How the login gets created</h3>
       <p>Whenever an applicant fills in the father's email and phone in the admission form's Family Details step and submits, a parent login is created automatically the moment they hit Final Submit:</p>
       <ul>
@@ -763,6 +817,22 @@
         <li>A welcome email is sent (in-app log + real email if SMTP is configured) with these credentials.</li>
       </ul>
       <p>If a second child is admitted later using the <em>same</em> father's email, they're automatically added to the existing login instead of creating a duplicate — one parent account, both children. If that email is already in use by a teacher or student account, auto-creation is skipped and Admin needs to sort it out by hand from the Parents screen. Either way, Admin can also create or edit a parent login manually at any time — see <a href="#role-admin">Super Admin &amp; Admin</a>.</p>
+
+      <div class="shot-row">
+        <figure class="shot">
+          <img src="/screenshots/admin-parents.png" alt="Admin's Parents screen listing Rajesh Sharma, auto-created and linked to his daughter Priya Sharma, with an Add Parent Login button." loading="lazy" />
+          <figcaption>Admin → Parents — an auto-created login, already linked to the right child.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="/screenshots/admin-parents-modal.png" alt="Add Parent Login dialog with Name, Email, Mobile, Password, and Status fields, and a searchable checklist of students to link as Linked Children." loading="lazy" />
+          <figcaption>Add Parent Login — for the cases Admin needs to create one by hand.</figcaption>
+        </figure>
+      </div>
+
+      <figure class="shot">
+        <img src="/screenshots/parent-portal.png" alt="Parent dashboard showing a PARENT badge, 'Viewing records for Priya Sharma · Class 1', and stat cards for Class, Attendance, and Fee Balance." loading="lazy" />
+        <figcaption>What a parent sees after signing in — scoped entirely to their own child.</figcaption>
+      </figure>
 
       <dl class="feat">
         <div><dt>Overview</dt><dd>Your child's class, attendance percentage, and fee balance at a glance.</dd></div>
