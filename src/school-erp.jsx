@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, UserPlus, GraduationCap, BookOpen, Bell,
   Wallet, LogOut, CheckCircle, XCircle, Clock, Search, Plus,
   Trash2, ChevronRight, User, Lock, FileText,
-  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu, LifeBuoy, Library
+  Award, X, ClipboardCheck, Eye, Pencil, UploadCloud, Printer, Menu, LifeBuoy, Library, MessageSquare
 } from "lucide-react";
 
 /**
@@ -2681,6 +2681,10 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
   const [resetting, setResetting] = useState(null); // student being reset (confirm step)
   const [resetResult, setResetResult] = useState(null); // { name, email, tempPassword } once done
   const [resetErr, setResetErr] = useState("");
+  const [messagingTo, setMessagingTo] = useState(null); // student being messaged
+  const [messageText, setMessageText] = useState("");
+  const [messageErr, setMessageErr] = useState("");
+  const [messageSent, setMessageSent] = useState(false);
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
   const filtered = students.filter((s) => (s.name + s.rollNo).toLowerCase().includes(q.toLowerCase()));
   const resultStudent = resultFor ? students.find((s) => s.id === resultFor) : null;
@@ -2709,6 +2713,19 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
       setResetting(null);
     } catch (e) {
       setResetErr(e.message || "Could not reset password. Please try again.");
+    }
+  };
+
+  const sendMessage = async () => {
+    setMessageErr("");
+    if (!messageText.trim()) { setMessageErr("Please write a message."); return; }
+    try {
+      await actions.sendMessage({ toStudentId: messagingTo.id, text: messageText.trim() });
+      setMessagingTo(null);
+      setMessageText("");
+      setMessageSent(true);
+    } catch (e) {
+      setMessageErr(e.message || "Could not send this message. Please try again.");
     }
   };
 
@@ -2756,6 +2773,7 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
                       <td>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => setResultFor(s.id)}><Eye size={13} /> View Result</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setMessageErr(""); setMessageText(""); setMessagingTo(s); }}><MessageSquare size={13} /> Message</button>
                           {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => { setResetErr(""); setResetting(s); }}><Lock size={13} /> Reset Password</button>}
                         </div>
                       </td>
@@ -2799,6 +2817,30 @@ function StudentsDirectory({ students, courses, store, actions, canImport }) {
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
             <button className="btn btn-primary" onClick={() => setResetResult(null)}>Done</button>
+          </div>
+        </Modal>
+      )}
+      {messagingTo && (
+        <Modal title={`Message ${messagingTo.name}`} onClose={() => setMessagingTo(null)}>
+          {messageErr && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{messageErr}</div>}
+          <Field label="Message" as="textarea" inputProps={{
+            value: messageText, onChange: (e) => setMessageText(e.target.value),
+            placeholder: `Write a note to ${messagingTo.name.split(" ")[0]}…`, rows: 4,
+          }} />
+          <p style={{ fontSize: 11.5, color: "var(--slate)", marginTop: -8, marginBottom: 6 }}>
+            Appears in {messagingTo.name.split(" ")[0]}'s Notifications inbox, signed with your name.
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-ghost" onClick={() => setMessagingTo(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={sendMessage}><MessageSquare size={14} /> Send</button>
+          </div>
+        </Modal>
+      )}
+      {messageSent && (
+        <Modal title="Message Sent" onClose={() => setMessageSent(false)}>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6 }}>Your message has been delivered to the student's Notifications inbox.</p>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={() => setMessageSent(false)}>Done</button>
           </div>
         </Modal>
       )}

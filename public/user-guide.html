@@ -525,6 +525,7 @@
         <li><a href="#attendance">Attendance</a></li>
         <li><a href="#grades">Grades &amp; results</a></li>
         <li><a href="#notices">Notices</a></li>
+        <li><a href="#messaging">Messaging a student</a></li>
         <li><a href="#leave">Leave requests</a></li>
         <li><a href="#library">Library</a></li>
         <li><a href="#support">Support / helpdesk</a></li>
@@ -570,6 +571,7 @@
           <li><a href="#attendance">Attendance</a></li>
           <li><a href="#grades">Grades &amp; results</a></li>
           <li><a href="#notices">Notices</a></li>
+          <li><a href="#messaging">Messaging a student</a></li>
           <li><a href="#leave">Leave requests</a></li>
           <li><a href="#library">Library</a></li>
           <li><a href="#support">Support / helpdesk</a></li>
@@ -890,6 +892,15 @@
       <p>Admin and Faculty can both post to the school-wide Notice Board — Admin can delete any notice; Faculty can post but not delete. Every notice shows who posted it and their role. Everyone, including students, sees the board in chronological order.</p>
     </section>
 
+    <section class="block" id="messaging">
+      <h2>Messaging a student directly <span class="role-pill">Admin</span><span class="role-pill">HOD</span><span class="role-pill">Faculty</span></h2>
+      <p class="lede">For a one-off note to a specific student — a reminder, an instruction, anything that doesn't belong on the public Notice Board.</p>
+      <p>From <strong>Students</strong> (Admin/HOD) or <strong>My Students</strong> (Faculty), click <strong>Message</strong> next to any student's row, write a note, and send. It lands directly in that student's <strong>Notifications</strong> inbox, signed with your name — there's no reply-back thread; a student responds the normal way (email, in person) rather than through the app.</p>
+      <div class="callout">
+        <p>Who a message says it's from is always the signed-in staff member sending it — the server derives your name and role itself rather than trusting anything the browser sends, so there's no way to send a note that looks like it's from someone else.</p>
+      </div>
+    </section>
+
     <section class="block" id="leave">
       <h2>Leave requests</h2>
       <p>Accounts and Librarian can each apply for their own leave from <strong>My Leave</strong> — pick a type, dates, and a reason. Admin/Super Admin sees every request and approves or rejects it with an optional note.</p>
@@ -955,7 +966,6 @@
       <p class="lede">So you don't go looking for it. None of these are bugs — they're simply out of scope for this version.</p>
       <ul class="gaps">
         <li><span class="x">✕</span><div><strong>No student ID card feature.</strong></div></li>
-        <li><span class="x">✕</span><div><strong>No direct staff-to-student messaging.</strong> The student Notifications inbox only fills up automatically — fee reminders, support replies, reading milestones — there's no "compose a message" screen for staff.</div></li>
         <li><span class="x">✕</span><div><strong>Faculty can't apply for their own leave</strong> through the app yet, unlike Accounts and Librarian.</div></li>
         <li><span class="x">✕</span><div><strong>Library reservations and barcode/RFID scanning</strong> aren't built — issuing is by accession number, and there's no hold queue for a book that's currently out.</div></li>
       </ul>
