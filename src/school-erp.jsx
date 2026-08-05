@@ -371,6 +371,7 @@ const GlobalStyles = () => (
     .badge-admin { background: var(--ink); color: #fff; }
     .badge-teacher { background: var(--gold-light); color: var(--ink); }
     .badge-student { background: #EDEAE0; color: var(--charcoal); }
+    .badge-parent { background: var(--maroon); color: #fff; }
 
     .erp-hamburger { display: none; }
     .erp-backdrop { display: none; }
@@ -1884,7 +1885,7 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
         </div>
         <div className="card" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.18)" }}>
           <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
-            {[["student", "Student"], ["teacher", "Staff"], ["admin", "Administrator"]].map(([k, l]) => (
+            {[["student", "Student"], ["parent", "Parent"], ["teacher", "Staff"], ["admin", "Administrator"]].map(([k, l]) => (
               <button key={k} className={`tab-btn ${tab === k ? "active" : ""}`} style={{ flex: 1 }} onClick={() => switchTab(k)}>{l}</button>
             ))}
           </div>
@@ -1919,6 +1920,11 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
                 Faculty accounts are created by the Administrator.
               </div>
             )}
+            {tab === "parent" && (
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--slate)" }}>
+                Parent accounts are created by the Administrator — contact the school office if you don't have one yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1943,7 +1949,7 @@ function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, c
       }} className={`erp-sidebar ${navOpen ? "open" : ""}`}>
         <div style={{ padding: "22px 18px" }}><CollegeMark light /></div>
         <div style={{ padding: "0 16px 8px" }}>
-          <span className={`badge-role badge-${roleLabel.toLowerCase() === "administrator" ? "admin" : roleLabel.toLowerCase() === "faculty" ? "teacher" : "student"}`}>{roleLabel}</span>
+          <span className={`badge-role badge-${roleLabel.toLowerCase() === "administrator" ? "admin" : roleLabel.toLowerCase() === "faculty" ? "teacher" : roleLabel.toLowerCase() === "parent" ? "parent" : "student"}`}>{roleLabel}</span>
         </div>
         <div style={{ flex: 1, marginTop: 8 }}>
           {navItems.map((n) => (
@@ -2017,6 +2023,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
     { key: "reports", label: "Reports", icon: <FileText size={16} /> },
     { key: "notices", label: "Notices", icon: <Bell size={16} /> },
     { key: "library", label: "Library", icon: <Library size={16} /> },
+    { key: "parents", label: "Parents", icon: <User size={16} /> },
     { key: "support", label: "Support", icon: <LifeBuoy size={16} />, count: supportUnread },
   ];
   const nav = allNav.filter((n) => has(n.key));
@@ -2068,6 +2075,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
       {page === "reports" && <ReportsCenter store={store} />}
       {page === "notices" && <NoticesBoard notices={notices} actions={actions} poster={{ id: "admin", name: "Administrator", role: "admin" }} canDelete />}
       {page === "library" && <LibraryAdminPage actions={actions} students={students} teachers={teachers} isAdmin />}
+      {page === "parents" && <ParentsAdminPage students={approvedStudents} parents={store.parents} actions={actions} />}
       {page === "support" && <SupportCenter role="admin" students={students} tickets={store.supportTickets} actions={actions} />}
       {page === "settings" && isSuperAdmin && <AdminAccountsManager actions={actions} />}
       {viewingNotice && <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />}
@@ -2075,7 +2083,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
   );
 }
 
-const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "support", "attendance", "grades", "hr", "settings"];
+const ALL_MODULES = ["overview", "admissions", "students", "teachers", "courses", "fees", "reports", "notices", "support", "attendance", "grades", "hr", "settings", "parents"];
 const MODULE_LABELS = {
   overview: "Overview", admissions: "Admissions Registry", students: "Students",
   teachers: "Faculty & Staff", courses: "Classes", fees: "Fees", reports: "Reports",
@@ -3242,6 +3250,158 @@ function FacultyDirectory({ teachers, students, actions, readOnly }) {
               <input type="file" accept="image/jpeg,image/jpg,image/png" onChange={handlePhoto} />
             </div>
             {photoErr && <div style={{ color: "var(--danger)", fontSize: 11.5, marginTop: 4 }}>{photoErr}</div>}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <button className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={submit}>Save</button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// Admin/Super Admin screen: create parent logins and link each one to one
+// or more existing students (siblings share a single login). Parents
+// themselves only ever reach the read-only ParentPortal below — this is the
+// only place a parent account is created, edited, or removed.
+function ParentsAdminPage({ students, parents, actions }) {
+  const blank = { name: "", email: "", phone: "", password: "", status: "active" };
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [f, setF] = useState(blank);
+  const [childIds, setChildIds] = useState(new Set());
+  const [childQuery, setChildQuery] = useState("");
+  const [err, setErr] = useState("");
+  const [q, setQ] = useState("");
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const toggleChild = (id) => setChildIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const visible = parents.filter((p) => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return true;
+    return (p.name || "").toLowerCase().includes(needle)
+      || (p.email || "").toLowerCase().includes(needle)
+      || (p.children || []).some((c) => (c.studentName || "").toLowerCase().includes(needle));
+  });
+
+  const visibleChildOptions = students.filter((s) => {
+    const needle = childQuery.trim().toLowerCase();
+    if (!needle) return true;
+    return (s.name || "").toLowerCase().includes(needle) || (s.rollNo || "").toLowerCase().includes(needle);
+  });
+
+  const openAdd = () => { setEditingId(null); setF(blank); setChildIds(new Set()); setChildQuery(""); setErr(""); setOpen(true); };
+  const openEdit = (p) => {
+    setEditingId(p.id);
+    setF({ name: p.name, email: p.email, phone: p.phone || "", password: "", status: p.status || "active" });
+    setChildIds(new Set((p.children || []).map((c) => c.studentId)));
+    setChildQuery(""); setErr(""); setOpen(true);
+  };
+
+  const submit = async () => {
+    setErr("");
+    if (!f.name.trim() || !f.email.trim()) { setErr("Name and email are required."); return; }
+    if (!EMAIL_RE.test(f.email.trim())) { setErr("Please enter a valid email address."); return; }
+    if (!editingId && (!f.password || f.password.length < 6)) { setErr("Password must be at least 6 characters."); return; }
+    if (childIds.size === 0) { setErr("Select at least one child to link this parent to."); return; }
+    try {
+      const payload = { name: f.name.trim(), email: f.email.trim().toLowerCase(), phone: f.phone, status: f.status, studentIds: Array.from(childIds) };
+      if (f.password) payload.password = f.password;
+      if (editingId) await actions.updateParent(editingId, payload);
+      else await actions.addParent(payload);
+      setOpen(false);
+    } catch (ex) {
+      setErr(ex.message || "Could not save this parent account.");
+    }
+  };
+
+  const removeParent = (p) => {
+    if (!window.confirm(`Remove ${p.name}'s parent login? They will no longer be able to sign in.`)) return;
+    actions.removeParent(p.id);
+  };
+
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Family Access" title="Parents"
+        action={<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ position: "relative" }}>
+            <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+            <input placeholder="Search name, email or child" value={q} onChange={(e) => setQ(e.target.value)} style={{ paddingLeft: 30, width: 220 }} />
+          </div>
+          <button className="btn btn-primary" onClick={openAdd}><Plus size={14} /> Add Parent Login</button>
+        </div>}
+      />
+      <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -10, marginBottom: 16 }}>
+        Parents sign in from the Staff tab with their email and password, and can only view their own linked children's attendance, grades, fees, and library activity — never edit anything.
+      </p>
+
+      <div className="card">
+        {visible.length === 0 ? <div className="card-body"><EmptyState icon={<User size={30} />} title="No parent logins yet" note="Add one and link it to a student to give a parent visibility into their child's records." /></div> : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="ledger">
+              <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Children</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {visible.map((p) => (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight: 600 }}>{p.name}</td>
+                    <td style={{ fontSize: 12.5 }}>{p.email}</td>
+                    <td>{p.phone || "—"}</td>
+                    <td style={{ fontSize: 12.5 }}>{(p.children || []).map((c) => c.studentName).join(", ") || "—"}</td>
+                    <td>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: p.status === "active" ? "var(--success)" : "var(--slate)" }}>
+                        {p.status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><Pencil size={13} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => removeParent(p)}><Trash2 size={13} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {open && (
+        <Modal title={editingId ? "Edit Parent Login" : "Add Parent Login"} onClose={() => setOpen(false)} width={640}>
+          {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Field label="Name *" inputProps={{ value: f.name, onChange: set("name") }} />
+            <Field label="Email / Username *" inputProps={{ type: "email", value: f.email, onChange: set("email") }} />
+            <Field label="Mobile" inputProps={{ value: f.phone, onChange: set("phone") }} />
+            <Field label={editingId ? "New Password (leave blank to keep current)" : "Password *"} inputProps={{ type: "password", value: f.password, onChange: set("password") }} />
+            <Field label="Status" as="select" selectProps={{ value: f.status, onChange: set("status") }}>
+              <option value="active">Active</option><option value="inactive">Inactive</option>
+            </Field>
+          </div>
+
+          <div className="eyebrow" style={{ margin: "18px 0 8px" }}>Linked Children ({childIds.size} selected)</div>
+          <div style={{ position: "relative", marginBottom: 8 }}>
+            <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--slate)" }} />
+            <input placeholder="Search student by name or roll no." value={childQuery} onChange={(e) => setChildQuery(e.target.value)} style={{ paddingLeft: 30, width: "100%" }} />
+          </div>
+          <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6 }}>
+            {visibleChildOptions.length === 0 ? (
+              <div style={{ padding: 14, fontSize: 12.5, color: "var(--slate)" }}>No matching students.</div>
+            ) : visibleChildOptions.map((s) => (
+              <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border)", fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={childIds.has(s.id)} onChange={() => toggleChild(s.id)} />
+                <span style={{ fontWeight: 600 }}>{s.name}</span>
+                <span style={{ color: "var(--slate)", fontSize: 12 }}>{s.rollNo ? `Roll No. ${s.rollNo}` : ""}</span>
+              </label>
+            ))}
           </div>
 
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
@@ -5820,6 +5980,260 @@ function StudentEditProfile({ student, actions }) {
   );
 }
 
+/* ============================== PARENT PORTAL ============================== */
+
+// Read-only: a parent can look at their own children's attendance, grades,
+// fees, and library activity, but never edit anything (issue a book, mark
+// attendance, record a payment, etc.) — those all stay staff-only actions.
+// Each child's data is fetched on demand, scoped server-side to this parent
+// (see server/routes/parents.js), not pulled from the shared `store` the
+// way every other role's data is.
+function ParentPortal({ user, store, actions, onLogout }) {
+  const [page, setPage] = useState("overview");
+  const children = store.parentChildren || [];
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [attendance, setAttendance] = useState(null);
+  const [feesData, setFeesData] = useState(null);
+  const [grades, setGrades] = useState(null);
+  const [libraryData, setLibraryData] = useState(null);
+  const [err, setErr] = useState("");
+  const [viewingNotice, setViewingNotice] = useState(null);
+
+  useEffect(() => {
+    if (!selectedChildId && children.length > 0) setSelectedChildId(children[0].id);
+  }, [children, selectedChildId]);
+
+  const child = children.find((c) => c.id === selectedChildId) || null;
+
+  // Attendance/fees are cheap single-table queries, so these load as soon as
+  // a child is selected; grades/library only load once their tab is opened.
+  useEffect(() => {
+    if (!selectedChildId) return;
+    setAttendance(null); setFeesData(null); setGrades(null); setLibraryData(null); setErr("");
+    actions.getChildAttendance(selectedChildId).then(setAttendance).catch((e) => setErr(e.message || "Could not load attendance."));
+    actions.getChildFees(selectedChildId).then(setFeesData).catch((e) => setErr(e.message || "Could not load fees."));
+  }, [selectedChildId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!selectedChildId || page !== "grades" || grades) return;
+    actions.getChildGrades(selectedChildId).then(setGrades).catch((e) => setErr(e.message || "Could not load grades."));
+  }, [selectedChildId, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!selectedChildId || page !== "library" || libraryData) return;
+    actions.getChildLibrary(selectedChildId).then(setLibraryData).catch((e) => setErr(e.message || "Could not load library activity."));
+  }, [selectedChildId, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pct = attendance && attendance.length ? Math.round((attendance.filter((r) => r.status === "Present").length / attendance.length) * 100) : null;
+  const balanceDue = feesData?.fee ? feesData.fee.totalFee - feesData.fee.paid : null;
+
+  const gradeGroups = Object.values(
+    (grades || []).reduce((acc, g) => {
+      const key = `${g.semester}__${g.examType}`;
+      (acc[key] ||= { key, semester: g.semester, examType: g.examType, subjects: [] }).subjects.push(g);
+      return acc;
+    }, {})
+  ).sort((a, b) => a.semester - b.semester || EXAM_TYPES.indexOf(a.examType) - EXAM_TYPES.indexOf(b.examType));
+
+  const nav = [
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "attendance", label: "Attendance", icon: <ClipboardCheck size={16} /> },
+    { key: "grades", label: "Grades", icon: <Award size={16} /> },
+    { key: "fees", label: "Fees & Payments", icon: <Wallet size={16} /> },
+    { key: "library", label: "Library", icon: <Library size={16} /> },
+    { key: "notices", label: "Notice Board", icon: <Bell size={16} /> },
+  ];
+
+  return (
+    <PortalShell roleLabel="Parent" userName={user.name} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+      {children.length === 0 ? (
+        <EmptyState icon={<User size={30} />} title="No children linked to this account" note="Contact the school office if you believe this is an error." />
+      ) : (
+        <>
+          {children.length > 1 ? (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--slate)" }}>Viewing records for</label>
+                <select value={selectedChildId || ""} onChange={(e) => setSelectedChildId(e.target.value)} style={{ width: 260 }}>
+                  {children.map((c) => <option key={c.id} value={c.id}>{c.name}{c.courseName ? ` — ${c.courseName}` : ""}</option>)}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: -6, marginBottom: 18 }}>
+              Viewing records for <strong style={{ color: "var(--ink)" }}>{child?.name}</strong>{child?.courseName ? ` · ${child.courseName}` : ""}
+            </p>
+          )}
+
+          {err && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", padding: "8px 12px", borderRadius: 4, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+
+          {page === "overview" && child && (
+            <>
+              <SectionHeader eyebrow={child.rollNo ? `Roll No. ${child.rollNo}` : "Overview"} title={`${child.name.split(" ")[0]}'s Overview`} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+                <StatCard icon={<BookOpen size={22} />} value={child.courseName || "—"} label="Class" />
+                <StatCard icon={<ClipboardCheck size={22} />} value={pct === null ? "—" : `${pct}%`} label="Attendance" accent={pct !== null && pct < 75 ? "var(--danger)" : "var(--success)"} onClick={() => setPage("attendance")} />
+                <StatCard icon={<Wallet size={22} />} value={balanceDue === null ? "—" : `₹${balanceDue.toLocaleString("en-IN")}`} label="Fee Balance" accent={balanceDue > 0 ? "var(--warn)" : "var(--success)"} onClick={() => setPage("fees")} />
+              </div>
+              <div className="card">
+                <div className="card-header"><h3 style={{ fontSize: 15 }}>Latest Notices</h3></div>
+                <div className="card-body">
+                  {store.notices.length === 0 ? <EmptyState icon={<Bell size={28} />} title="No notices" note="Check back later." /> :
+                    store.notices.slice(0, 5).map((n) => (
+                      <div key={n.id} style={{ padding: "9px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setViewingNotice(n)}>
+                        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{n.title}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--slate)" }}>{fmtDate(n.date)}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {page === "attendance" && (
+            <>
+              <SectionHeader eyebrow="Register" title={`${child?.name || ""}'s Attendance`} />
+              <div className="card">
+                {!attendance ? null : attendance.length === 0 ? (
+                  <div className="card-body"><EmptyState icon={<ClipboardCheck size={28} />} title="No attendance recorded yet" note="It will appear here once faculty begin marking it." /></div>
+                ) : (
+                  <table className="ledger">
+                    <thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead>
+                    <tbody>{[...attendance].reverse().map((r, i) => (
+                      <tr key={i}><td>{fmtDate(r.date)}</td><td>{r.subject}</td>
+                        <td><span style={{ color: r.status === "Present" ? "var(--success)" : "var(--danger)", fontWeight: 700, fontSize: 12.5 }}>{r.status}</span></td></tr>
+                    ))}</tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+
+          {page === "grades" && (
+            <>
+              <SectionHeader eyebrow="Results" title={`${child?.name || ""}'s Academic Record`} />
+              <div className="card">
+                {!grades ? null : gradeGroups.length === 0 ? (
+                  <div className="card-body"><EmptyState icon={<Award size={28} />} title="No results published" note="Grades will appear here once entered by faculty." /></div>
+                ) : (
+                  <table className="ledger">
+                    <thead><tr><th>Semester</th><th>Exam</th><th>Subjects</th><th>Overall %</th></tr></thead>
+                    <tbody>
+                      {gradeGroups.map((grp) => {
+                        const totalObtained = grp.subjects.reduce((sum, g) => sum + Number(g.marks || 0), 0);
+                        const totalMax = grp.subjects.reduce((sum, g) => sum + Number(g.maxMarks || 0), 0);
+                        const overallPct = totalMax ? Math.round((totalObtained / totalMax) * 1000) / 10 : null;
+                        return (
+                          <tr key={grp.key}>
+                            <td className="num">Semester {grp.semester}</td>
+                            <td>{grp.examType}</td>
+                            <td style={{ fontSize: 12.5, color: "var(--slate)" }}>{grp.subjects.map((s) => s.subject).join(", ")}</td>
+                            <td className="num">{overallPct !== null ? `${overallPct}%` : "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+
+          {page === "fees" && (
+            <>
+              <SectionHeader eyebrow="Ledger" title={`${child?.name || ""}'s Fees & Payments`} />
+              {feesData?.fee && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+                  <StatCard icon={<Wallet size={22} />} value={`₹${feesData.fee.totalFee.toLocaleString("en-IN")}`} label="Total Fee" />
+                  <StatCard icon={<CheckCircle size={22} />} value={`₹${feesData.fee.paid.toLocaleString("en-IN")}`} label="Paid So Far" accent="var(--success)" />
+                  <StatCard icon={<Clock size={22} />} value={balanceDue > 0 ? `₹${balanceDue.toLocaleString("en-IN")}` : "₹0"} label={feesData.fee.dueDate ? `Balance · Due ${fmtDate(feesData.fee.dueDate)}` : "Balance Due"} accent={balanceDue > 0 ? "var(--warn)" : "var(--success)"} />
+                </div>
+              )}
+              <div className="card">
+                <div className="card-header"><h3 style={{ fontSize: 15 }}>Payment History</h3></div>
+                {!feesData ? null : (feesData.transactions || []).length === 0 ? (
+                  <div className="card-body"><EmptyState icon={<Wallet size={28} />} title="No payments recorded yet" note="Payment history will appear here." /></div>
+                ) : (
+                  <table className="ledger">
+                    <thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Type</th></tr></thead>
+                    <tbody>{feesData.transactions.map((t) => (
+                      <tr key={t.id}>
+                        <td>{fmtDate(t.date)}</td>
+                        <td className="num">₹{Number(t.totalAmount || 0).toLocaleString("en-IN")}</td>
+                        <td>{t.paymentMode || "—"}</td>
+                        <td style={{ fontSize: 12.5, color: "var(--slate)" }}>{t.paymentType || "—"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+
+          {page === "library" && (
+            <>
+              <SectionHeader eyebrow="Library" title={`${child?.name || ""}'s Library Activity`} />
+              {libraryData?.readingLog && (
+                <div className="card" style={{ marginBottom: 20 }}>
+                  <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>{libraryData.readingLog.booksRead}</div>
+                      <div style={{ fontSize: 12, color: "var(--slate)" }}>Books completed</div>
+                    </div>
+                    {libraryData.readingLog.nextMilestone && (
+                      <div style={{ fontSize: 12.5, color: "var(--slate)" }}>{libraryData.readingLog.nextMilestone - libraryData.readingLog.booksRead} more to reach the {libraryData.readingLog.nextMilestone}-book milestone</div>
+                    )}
+                    {libraryData.readingLog.milestonesReached.map((m) => (
+                      <span key={m} className="badge-role badge-admin" style={{ fontSize: 11 }}>{m} Books Badge</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="card">
+                {!libraryData ? null : (libraryData.loans || []).length === 0 ? (
+                  <div className="card-body"><EmptyState icon={<Library size={28} />} title="No loans yet" note="Books borrowed from the library will appear here." /></div>
+                ) : (
+                  <table className="ledger">
+                    <thead><tr><th>Title</th><th>Issued</th><th>Due</th><th>Status</th></tr></thead>
+                    <tbody>{libraryData.loans.map((l) => (
+                      <tr key={l.id}>
+                        <td style={{ fontWeight: 600 }}>{l.title}</td>
+                        <td>{libFmtDate(l.issuedAt)}</td>
+                        <td style={!l.returnedAt && isOverdue(l) ? { color: "var(--danger)", fontWeight: 700 } : undefined}>{libFmtDate(l.dueDate)}</td>
+                        <td>{l.returnedAt ? <span style={{ color: "var(--success)" }}>Returned {libFmtDate(l.returnedAt)}</span> : isOverdue(l) ? <span style={{ color: "var(--danger)", fontWeight: 700 }}>Overdue</span> : "On loan"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+
+          {page === "notices" && (
+            <>
+              <SectionHeader eyebrow="Board" title="Notice Board" />
+              <div className="card">
+                {store.notices.length === 0 ? <div className="card-body"><EmptyState icon={<Bell size={28} />} title="No notices yet" note="Check back later." /></div> : (
+                  store.notices.map((n) => (
+                    <div key={n.id} style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setViewingNotice(n)}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{n.title}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--slate)", marginTop: 3 }}>
+                        {fmtDate(n.date)} &middot; <span className={`badge-role badge-${n.postedByRole === "admin" ? "admin" : "teacher"}`}>{n.postedByRole === "admin" ? "Administrator" : "Faculty"}</span> {n.postedByName}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+
+          {viewingNotice && <NoticeDetailModal notice={viewingNotice} onClose={() => setViewingNotice(null)} />}
+        </>
+      )}
+    </PortalShell>
+  );
+}
+
 /* ============================== ROOT APP ============================== */
 
 export default function App() {
@@ -5828,7 +6242,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
   const [view, setView] = useState("login");
-  const [store, setStore] = useState({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [] });
+  const [store, setStore] = useState({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [], parents: [], parentChildren: [] });
 
   const groupByStudent = (rows, mapFn) => {
     const out = {};
@@ -5838,11 +6252,12 @@ export default function App() {
 
   const loadAll = async () => {
     try {
-      const [students, teachers, courses, notices, attendanceRows, gradeRows, feeRows, transactions, messages, emails, academicRows, documentRows, supportTickets] = await Promise.all([
+      const [students, teachers, courses, notices, attendanceRows, gradeRows, feeRows, transactions, messages, emails, academicRows, documentRows, supportTickets, parents] = await Promise.all([
         api.get("/students"), api.get("/teachers"), api.get("/courses"), api.get("/notices"),
         api.get("/attendance"), api.get("/grades"), api.get("/fees"),
         api.get("/transactions"), api.get("/messages"), api.get("/emails"),
         api.get("/academic-details"), api.get("/documents"), api.get("/support/tickets"),
+        api.get("/parents").catch(() => []), // Admin/Super Admin only server-side; every other role just gets [] here, unused.
       ]);
       const attendance = groupByStudent(attendanceRows, (r) => ({ date: r.date, subject: r.subject, status: r.status }));
       const grades = groupByStudent(gradeRows);
@@ -5851,7 +6266,27 @@ export default function App() {
       const fees = {};
       feeRows.forEach((f) => { fees[f.studentId] = { totalFee: f.totalFee, paid: f.paid, admissionFeePaid: f.admissionFeePaid, dueDate: f.dueDate, plan: f.plan, extraFields: f.extraFields }; });
       const paymentsConfig = await api.get("/payments/config").catch(() => ({ provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }));
-      setStore({ students, teachers, courses, notices, attendance, grades, fees, transactions, messages, emails, paymentsConfig, academicDetails, documents, supportTickets });
+      setStore((prev) => ({ ...prev, students, teachers, courses, notices, attendance, grades, fees, transactions, messages, emails, paymentsConfig, academicDetails, documents, supportTickets, parents }));
+      setLoadError("");
+    } catch (e) {
+      setLoadError(e.message || "Could not load data from the server.");
+    }
+    setLoading(false);
+  };
+
+  // Parents are a lower-trust, non-staff audience — rather than handing them
+  // the same full unfiltered dataset every other signed-in role gets via
+  // loadAll(), a parent's session only ever loads their own linked children
+  // (server-scoped, see routes/parents.js) plus the public notice board.
+  // Each child's attendance/grades/fees/library are fetched on demand by
+  // ParentPortal itself, not preloaded here.
+  const loadParentData = async () => {
+    try {
+      const [parentChildren, notices] = await Promise.all([
+        api.get("/parents/me/children"),
+        api.get("/notices"),
+      ]);
+      setStore((prev) => ({ ...prev, parentChildren, notices }));
       setLoadError("");
     } catch (e) {
       setLoadError(e.message || "Could not load data from the server.");
@@ -5873,7 +6308,7 @@ export default function App() {
       try {
         const me = await api.get("/auth/me");
         setUser({ role: me.role, id: me.id, name: me.name, department: me.department || null, permissions: me.permissions || null });
-        await loadAll();
+        await (me.role === "parent" ? loadParentData() : loadAll());
       } catch {
         setAuthToken(null); // stored token is invalid/expired
         setLoading(false);
@@ -5921,16 +6356,17 @@ export default function App() {
     setUser({ role: res.role, id: res.id, name: res.name, department: res.department || null, permissions: res.permissions || null });
     // Show the same "Loading registry…" screen the page-refresh path shows,
     // instead of letting the portal mount for a beat with `store` still at
-    // its empty initial state — loadAll() flips this back off when it's done.
+    // its empty initial state — loadAll()/loadParentData() flips this back
+    // off when done.
     setLoading(true);
-    await loadAll();
+    await (res.role === "parent" ? loadParentData() : loadAll());
     return res;
   };
 
   const logout = () => {
     setAuthToken(null);
     setUser(null);
-    setStore({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [] });
+    setStore({ students: [], teachers: [], courses: [], notices: [], attendance: {}, grades: {}, fees: {}, transactions: [], messages: [], emails: [], paymentsConfig: { provider: "none", razorpay: { configured: false, keyId: null }, payu: { configured: false }, available: false }, academicDetails: {}, documents: {}, supportTickets: [], parents: [], parentChildren: [] });
     setView("login");
   };
 
@@ -6168,6 +6604,28 @@ export default function App() {
     // ---- Library: reports ----
     libraryReport: async (type, params) => api.get(`/library/reports/${type}${params ? `?${new URLSearchParams(params)}` : ""}`),
 
+    // ---- Parent portal: Admin/Super Admin manage parent accounts ----
+    addParent: async (p) => {
+      const created = await api.post("/parents", p);
+      setStore((prev) => ({ ...prev, parents: [created, ...prev.parents] }));
+      return created;
+    },
+    updateParent: async (id, patch) => {
+      const updated = await api.patch(`/parents/${id}`, patch);
+      setStore((prev) => ({ ...prev, parents: prev.parents.map((p) => (p.id === id ? updated : p)) }));
+      return updated;
+    },
+    removeParent: async (id) => {
+      await api.del(`/parents/${id}`);
+      setStore((prev) => ({ ...prev, parents: prev.parents.filter((p) => p.id !== id) }));
+    },
+
+    // ---- Parent portal: a parent's own read-only view of one linked child ----
+    getChildAttendance: async (studentId) => api.get(`/parents/me/children/${studentId}/attendance`),
+    getChildGrades: async (studentId) => api.get(`/parents/me/children/${studentId}/grades`),
+    getChildFees: async (studentId) => api.get(`/parents/me/children/${studentId}/fees`),
+    getChildLibrary: async (studentId) => api.get(`/parents/me/children/${studentId}/library`),
+
     // ---- Super Admin: manage Admin accounts ----
     listAdmins: async () => api.get("/admins"),
     createAdmin: async (payload) => api.post("/admins", payload),
@@ -6304,7 +6762,7 @@ export default function App() {
               <p style={{ fontSize: 12.5, color: "var(--slate)", marginTop: 10 }}>
                 Make sure the backend is running: open a terminal in the <code>/server</code> folder and run <code>npm start</code>.
               </p>
-              <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => { setLoading(true); loadAll(); }}>Retry</button>
+              <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => { setLoading(true); user?.role === "parent" ? loadParentData() : loadAll(); }}>Retry</button>
             </div>
           </div>
         </div>
@@ -6389,6 +6847,8 @@ export default function App() {
         <LibrarianPortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : user.role === "faculty" ? (
         <TeacherPortal user={user} store={store} actions={actions} onLogout={logout} />
+      ) : user.role === "parent" ? (
+        <ParentPortal user={user} store={store} actions={actions} onLogout={logout} />
       ) : (
         <StudentPortal user={user} store={store} actions={actions} onLogout={logout} />
       )}

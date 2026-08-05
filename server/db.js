@@ -457,6 +457,27 @@ CREATE TABLE IF NOT EXISTS library_settings (
   fine_cap                NUMERIC NOT NULL DEFAULT 0,
   renewal_limit           INTEGER NOT NULL DEFAULT 2
 );
+
+-- Parent portal: a parent account is created by Admin (not self-service,
+-- same as teachers) and linked to one or more existing students via
+-- parent_students, since siblings should share one login.
+CREATE TABLE IF NOT EXISTS parents (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  phone         TEXT,
+  status        TEXT NOT NULL DEFAULT 'active',
+  created_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS parent_students (
+  id          TEXT PRIMARY KEY,
+  parent_id   TEXT NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
+  student_id  TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  relation    TEXT,
+  UNIQUE(parent_id, student_id)
+);
 `;
 
 /* ============================== INDEXES ============================== */
@@ -484,6 +505,8 @@ const INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS idx_book_loans_borrower ON book_loans(borrower_type, borrower_id);
   CREATE INDEX IF NOT EXISTS idx_book_loans_returned ON book_loans(returned_at);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_book_loans_one_active_per_copy ON book_loans(copy_id) WHERE returned_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_parent_students_parent ON parent_students(parent_id);
+  CREATE INDEX IF NOT EXISTS idx_parent_students_student ON parent_students(student_id);
 `;
 
 /* ============================== INIT (schema + migrations + seed) ============================== */

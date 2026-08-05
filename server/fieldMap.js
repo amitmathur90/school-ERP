@@ -169,10 +169,19 @@ const BOOK_COPY_FIELDS = [
   ["shelfLocation", "shelf_location"], ["condition", "condition"], ["status", "status"],
 ];
 
+const PARENT_FIELDS = [
+  ["id", "id"], ["name", "name"], ["email", "email"], ["phone", "phone"],
+  ["status", "status"], ["createdAt", "created_at"],
+];
+
+const PARENT_STUDENT_FIELDS = [
+  ["id", "id"], ["parentId", "parent_id"], ["studentId", "student_id"], ["relation", "relation"],
+];
+
 module.exports = {
   rowToCamel, camelToSnakeParams, camelToSnakeSet,
   STUDENT_FIELDS, COURSE_FIELDS, TEACHER_FIELDS, NOTICE_FIELDS,
   GRADE_FIELDS, TRANSACTION_FIELDS, MESSAGE_FIELDS, EMAIL_FIELDS,
   ACADEMIC_FIELDS, DOCUMENT_FIELDS, SUPPORT_TICKET_FIELDS, SUPPORT_REPLY_FIELDS,
-  BOOK_TITLE_FIELDS, BOOK_COPY_FIELDS,
+  BOOK_TITLE_FIELDS, BOOK_COPY_FIELDS, PARENT_FIELDS, PARENT_STUDENT_FIELDS,
 };

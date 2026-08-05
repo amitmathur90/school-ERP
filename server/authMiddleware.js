@@ -15,7 +15,7 @@ if (!process.env.JWT_SECRET) {
 // use the exact same vocabulary.
 const MODULES = [
   "overview", "admissions", "students", "teachers", "courses",
-  "fees", "reports", "notices", "attendance", "grades", "hr", "settings", "support", "library",
+  "fees", "reports", "notices", "attendance", "grades", "hr", "settings", "support", "library", "parents",
 ];
 
 // Default module access per business role, used whenever that user doesn't

@@ -63,6 +63,7 @@ app.use("/api/messages", require("./routes/messages"));
 app.use("/api/support", require("./routes/support"));
 app.use("/api/emails", require("./routes/emails"));
 app.use("/api/library", require("./routes/library"));
+app.use("/api/parents", require("./routes/parents"));
 
 app.get("/api/health", async (req, res) => {
   try {

@@ -461,7 +461,7 @@
     <h1>School ERP</h1>
     <p>A day-to-day reference for everyone who signs in — from the front office and faculty staff room to the admissions desk, the library counter, and students checking their own results and fees. Organized by who you are and what you're trying to do.</p>
     <div class="masthead-meta">
-      <span><strong>6</strong> account roles</span>
+      <span><strong>7</strong> account roles</span>
       <span><strong>Web app</strong> — desktop &amp; mobile browser</span>
       <span>Guide current as of <strong>5 Aug 2026</strong></span>
     </div>
@@ -487,6 +487,7 @@
         <li><a href="#role-librarian">Librarian</a></li>
         <li><a href="#role-faculty">Faculty</a></li>
         <li><a href="#role-student">Student</a></li>
+        <li><a href="#role-parent">Parent</a></li>
       </ul>
     </div>
     <div class="group">
@@ -531,6 +532,7 @@
           <li><a href="#role-librarian">Librarian</a></li>
           <li><a href="#role-faculty">Faculty</a></li>
           <li><a href="#role-student">Student</a></li>
+          <li><a href="#role-parent">Parent</a></li>
         </ul>
       </div>
       <div class="group">
@@ -561,13 +563,14 @@
 
     <section class="block" id="logging-in">
       <h2>Logging in</h2>
-      <p class="lede">The sign-in screen has three tabs. Pick the one that matches who you are — the app then reads your actual account role from the server and sends you to the right dashboard automatically.</p>
+      <p class="lede">The sign-in screen has four tabs. Pick the one that matches who you are — the app then reads your actual account role from the server and sends you to the right dashboard automatically.</p>
 
       <div class="table-wrap">
         <table class="data">
           <thead><tr><th>Tab</th><th>Who it's for</th><th>You sign in with</th></tr></thead>
           <tbody>
             <tr><td>Student</td><td>Applicants and enrolled students</td><td>Email address + password</td></tr>
+            <tr><td>Parent</td><td>A parent or guardian linked to one or more students</td><td>Email address + password</td></tr>
             <tr><td>Staff</td><td>Faculty, Accounts, Librarian</td><td>Email address + password</td></tr>
             <tr><td>Administrator</td><td>Admin and Super Admin</td><td>Username + password</td></tr>
           </tbody>
@@ -577,7 +580,7 @@
       <p>Under the <strong>Staff</strong> tab, every non-teaching role — Accounts, Librarian — signs in the same way Faculty does. The server looks up your actual role and opens the matching dashboard; the tab is just where you start, not what decides your permissions.</p>
 
       <div class="callout">
-        <p><strong>Staff accounts aren't self-service.</strong> There's no sign-up form for the Staff or Administrator tabs — an Admin or Super Admin has to create your account first (Faculty &amp; Staff → Add). If you don't have credentials yet, ask your Admin.</p>
+        <p><strong>Staff and Parent accounts aren't self-service.</strong> There's no sign-up form for the Staff, Parent, or Administrator tabs — an Admin or Super Admin has to create your account first (Faculty &amp; Staff → Add, or Parents → Add Parent Login). If you don't have credentials yet, ask your Admin or the school office.</p>
       </div>
 
       <p>A few things happen automatically based on your account's status:</p>
@@ -690,6 +693,7 @@
         <div><dt>Reports</dt><dd>The full Reports Center — see <a href="#reports">Reports center</a>.</dd></div>
         <div><dt>Notices</dt><dd>Post notices to the school-wide board; can delete any notice, including ones Faculty posted.</dd></div>
         <div><dt>Library</dt><dd>Full library administration — catalog, issue/return desk, reports, and borrowing-policy settings. See <a href="#library">Library</a>.</dd></div>
+        <div><dt>Parents</dt><dd>Create a parent login and link it to one or more students (siblings can share one login). See <a href="#role-parent">Parent</a>.</dd></div>
         <div><dt>Support</dt><dd>See and reply to every helpdesk ticket, and change its status.</dd></div>
         <div><dt>Staff Accounts <span class="tab-note">Super Admin only</span></dt><dd>Create or deactivate other Admin accounts, and tick exactly which modules a given Admin can access.</dd></div>
       </dl>
@@ -745,6 +749,22 @@
         <div><dt>Notice Board</dt><dd>Everything posted school-wide.</dd></div>
         <div><dt>Support</dt><dd>Open a helpdesk ticket and reply in the thread.</dd></div>
       </dl>
+    </section>
+
+    <section class="block" id="role-parent">
+      <div class="role-head"><span class="role-pill">Parent</span><h3>Parent</h3></div>
+      <p>Read-only, by design — a parent can see everything about their own linked child, but can't issue a book, mark attendance, record a payment, or edit anything. If you have more than one child at the school, a switcher at the top of every page lets you pick which one you're viewing.</p>
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Your child's class, attendance percentage, and fee balance at a glance.</dd></div>
+        <div><dt>Attendance</dt><dd>Their full attendance record.</dd></div>
+        <div><dt>Grades</dt><dd>Their results by semester and exam type.</dd></div>
+        <div><dt>Fees &amp; Payments</dt><dd>Total fee, amount paid, balance due, due date, and full payment history.</dd></div>
+        <div><dt>Library</dt><dd>Their current and past loans, and their reading log if they have one.</dd></div>
+        <div><dt>Notice Board</dt><dd>Everything posted school-wide.</dd></div>
+      </dl>
+      <div class="callout">
+        <p><strong>Every child's data is checked server-side, not just hidden in the menu.</strong> A parent account can only ever pull records for the specific student(s) an Admin has linked it to — asking for another student's data by ID is rejected outright, the same principle applied everywhere else access control matters in this app.</p>
+      </div>
     </section>
 
     <hr class="group-divider" />
@@ -851,7 +871,6 @@
       <h2>What isn't built yet</h2>
       <p class="lede">So you don't go looking for it. None of these are bugs — they're simply out of scope for this version.</p>
       <ul class="gaps">
-        <li><span class="x">✕</span><div><strong>No Parent role.</strong> There's no parent login or parent-facing view anywhere in the app — fee balances, grades, attendance, and library loans are visible only to the student and to staff.</div></li>
         <li><span class="x">✕</span><div><strong>No student ID card feature.</strong></div></li>
         <li><span class="x">✕</span><div><strong>No direct staff-to-student messaging.</strong> The student Notifications inbox only fills up automatically — fee reminders, support replies, reading milestones — there's no "compose a message" screen for staff.</div></li>
         <li><span class="x">✕</span><div><strong>Faculty can't apply for their own leave</strong> through the app yet, unlike Accounts and Librarian.</div></li>

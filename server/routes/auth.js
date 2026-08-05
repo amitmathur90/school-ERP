@@ -51,6 +51,16 @@ router.post("/login", async (req, res) => {
       return res.json({ token, role: "student", id: row.id, name: row.name, status: row.status });
     }
 
+    if (role === "parent") {
+      const row = await db.get("SELECT * FROM parents WHERE email = ?", [id.toLowerCase()]);
+      if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+        return res.status(401).json({ error: "No parent account found with that email, or the password is incorrect." });
+      }
+      if (row.status === "inactive") return res.status(403).json({ error: "This account has been deactivated. Contact the administration office." });
+      const token = signToken({ id: row.id, name: row.name, role: "parent" });
+      return res.json({ token, role: "parent", id: row.id, name: row.name });
+    }
+
     return res.status(400).json({ error: "Unknown role." });
   } catch (e) {
     console.error("Login error:", e);
@@ -67,7 +77,7 @@ router.post("/change-password", async (req, res) => {
   if (newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters." });
 
   try {
-    const table = role === "student" ? "students" : role === "admin" || role === "super_admin" ? "admins" : "teachers";
+    const table = role === "student" ? "students" : role === "admin" || role === "super_admin" ? "admins" : role === "parent" ? "parents" : "teachers";
     const row = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
     if (!row) return res.status(404).json({ error: "Account not found." });
     if (!(await bcrypt.compare(currentPassword, row.password_hash))) {
