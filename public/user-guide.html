@@ -580,7 +580,7 @@
       <p>Under the <strong>Staff</strong> tab, every non-teaching role — Accounts, Librarian — signs in the same way Faculty does. The server looks up your actual role and opens the matching dashboard; the tab is just where you start, not what decides your permissions.</p>
 
       <div class="callout">
-        <p><strong>Staff and Parent accounts aren't self-service.</strong> There's no sign-up form for the Staff, Parent, or Administrator tabs — an Admin or Super Admin has to create your account first (Faculty &amp; Staff → Add, or Parents → Add Parent Login). If you don't have credentials yet, ask your Admin or the school office.</p>
+        <p><strong>Staff accounts aren't self-service</strong> — there's no sign-up form for the Staff or Administrator tabs; an Admin or Super Admin has to create your account first (Faculty &amp; Staff → Add). <strong>Parent accounts</strong> are usually created automatically the moment a student submits their admission form (using the father's email and phone from Family Details) — see <a href="#role-parent">Parent</a> — but Admin can also add one by hand from the Parents screen if needed. If you don't have credentials yet, ask your Admin or the school office.</p>
       </div>
 
       <p>A few things happen automatically based on your account's status:</p>
@@ -644,7 +644,7 @@
         </li>
         <li>
           <strong>Family Details</strong>
-          <p>Father's and mother's name, phone, email, and occupation; guardian details if applicable.</p>
+          <p>Father's and mother's name, phone, email, and occupation; guardian details if applicable. If you fill in the father's email and phone, a parent portal login is created automatically when you submit — see <a href="#role-parent">Parent</a>.</p>
         </li>
         <li>
           <strong>Education &amp; Class</strong>
@@ -693,7 +693,7 @@
         <div><dt>Reports</dt><dd>The full Reports Center — see <a href="#reports">Reports center</a>.</dd></div>
         <div><dt>Notices</dt><dd>Post notices to the school-wide board; can delete any notice, including ones Faculty posted.</dd></div>
         <div><dt>Library</dt><dd>Full library administration — catalog, issue/return desk, reports, and borrowing-policy settings. See <a href="#library">Library</a>.</dd></div>
-        <div><dt>Parents</dt><dd>Create a parent login and link it to one or more students (siblings can share one login). See <a href="#role-parent">Parent</a>.</dd></div>
+        <div><dt>Parents</dt><dd>Most parent logins are created automatically at admission (see <a href="#role-parent">Parent</a>) — this screen is for reviewing them, adding one by hand when needed, or relinking/deactivating an account.</dd></div>
         <div><dt>Support</dt><dd>See and reply to every helpdesk ticket, and change its status.</dd></div>
         <div><dt>Staff Accounts <span class="tab-note">Super Admin only</span></dt><dd>Create or deactivate other Admin accounts, and tick exactly which modules a given Admin can access.</dd></div>
       </dl>
@@ -754,6 +754,16 @@
     <section class="block" id="role-parent">
       <div class="role-head"><span class="role-pill">Parent</span><h3>Parent</h3></div>
       <p>Read-only, by design — a parent can see everything about their own linked child, but can't issue a book, mark attendance, record a payment, or edit anything. If you have more than one child at the school, a switcher at the top of every page lets you pick which one you're viewing.</p>
+
+      <h3>How the login gets created</h3>
+      <p>Whenever an applicant fills in the father's email and phone in the admission form's Family Details step and submits, a parent login is created automatically the moment they hit Final Submit:</p>
+      <ul>
+        <li><strong>Username</strong> — the father's email address.</li>
+        <li><strong>Password</strong> — the father's phone number, exactly as entered.</li>
+        <li>A welcome email is sent (in-app log + real email if SMTP is configured) with these credentials.</li>
+      </ul>
+      <p>If a second child is admitted later using the <em>same</em> father's email, they're automatically added to the existing login instead of creating a duplicate — one parent account, both children. If that email is already in use by a teacher or student account, auto-creation is skipped and Admin needs to sort it out by hand from the Parents screen. Either way, Admin can also create or edit a parent login manually at any time — see <a href="#role-admin">Super Admin &amp; Admin</a>.</p>
+
       <dl class="feat">
         <div><dt>Overview</dt><dd>Your child's class, attendance percentage, and fee balance at a glance.</dd></div>
         <div><dt>Attendance</dt><dd>Their full attendance record.</dd></div>
@@ -763,7 +773,10 @@
         <div><dt>Notice Board</dt><dd>Everything posted school-wide.</dd></div>
       </dl>
       <div class="callout">
-        <p><strong>Every child's data is checked server-side, not just hidden in the menu.</strong> A parent account can only ever pull records for the specific student(s) an Admin has linked it to — asking for another student's data by ID is rejected outright, the same principle applied everywhere else access control matters in this app.</p>
+        <p><strong>Every child's data is checked server-side, not just hidden in the menu.</strong> A parent account can only ever pull records for the specific student(s) it's linked to — asking for another student's data by ID is rejected outright, the same principle applied everywhere else access control matters in this app.</p>
+      </div>
+      <div class="callout warn">
+        <p>There's no in-app "change password" screen for parents yet — if you want to change the auto-assigned password (your phone number), ask the school office to reset it from the Parents screen.</p>
       </div>
     </section>
 

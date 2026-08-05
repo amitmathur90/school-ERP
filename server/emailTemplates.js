@@ -93,6 +93,26 @@ ${EMAIL_FOOTER}`,
   };
 }
 
+function composeParentWelcomeEmail(parent, plainPassword, studentName) {
+  return {
+    subject: `Parent Portal Access — ${COLLEGE_NAME}`,
+    body:
+`Dear ${parent.name},
+
+An account has been created for you on the ${COLLEGE_NAME} parent portal, linked to ${studentName}'s record, using the details you provided during admission.
+
+Your parent portal login details are below:
+Username: ${parent.email}
+Password: ${plainPassword}
+
+From the portal you can view ${studentName}'s attendance, grades, fees, and library activity at any time. Please keep these credentials safe, and consider asking the school office about changing your password.
+
+If a second child of yours is admitted later, the same login will automatically show both.
+
+${EMAIL_FOOTER}`,
+  };
+}
+
 function composeRejectionEmail(student, reason) {
   return {
     subject: `Update on Your Admission Application — ${COLLEGE_NAME}`,
@@ -142,5 +162,5 @@ ${EMAIL_FOOTER}`,
 
 module.exports = {
   composeRegistrationEmail, composeFeeReceiptEmail, composeFeeDueReminderEmail, composeTempPasswordEmail, composeRejectionEmail,
-  composeLibraryDueSoonEmail, composeLibraryOverdueEmail,
+  composeLibraryDueSoonEmail, composeLibraryOverdueEmail, composeParentWelcomeEmail,
 };

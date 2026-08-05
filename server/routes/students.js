@@ -4,6 +4,7 @@ const db = require("../db");
 const { rowToCamel, camelToSnakeSet, camelToSnakeParams, STUDENT_FIELDS } = require("../fieldMap");
 const { composeRegistrationEmail, composeTempPasswordEmail, composeRejectionEmail } = require("../emailTemplates");
 const { sendMail } = require("../mailer");
+const { autoProvisionParentFromAdmission } = require("../parentAutoProvision");
 const { authenticate, authorizeRoles, requireModule } = require("../authMiddleware");
 
 const router = express.Router();
@@ -89,6 +90,11 @@ router.post("/:id/finalize", async (req, res) => {
     [uid("mail"), student.email, subject, body, new Date().toISOString()]
   );
   sendMail({ to: student.email, subject, text: body });
+
+  // Best-effort: auto-create (or link to an existing) parent login from the
+  // father's details entered in Family Details. Must never fail the
+  // student's own submission if something goes wrong here.
+  autoProvisionParentFromAdmission(student).catch((e) => console.error("Parent auto-provision failed:", e));
 
   res.json(student);
 });
