@@ -1867,7 +1867,7 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
       backgroundImage: `url(${loginBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
     }}>
       <a
-        href="https://claude.ai/code/artifact/07ee084d-43a4-4f7f-83a7-ce1d3b3a6128"
+        href="/user-guide.html"
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -2035,7 +2035,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
   const totalCollected = Object.values(fees).reduce((sum, f) => sum + (f.paid || 0), 0);
 
   return (
-    <PortalShell roleLabel={isSuperAdmin ? "Super Admin" : "Administrator"} userName={user.name || "Administrator"} navItems={nav} active={page} onNav={setPage} onLogout={onLogout} guideUrl="https://claude.ai/code/artifact/07ee084d-43a4-4f7f-83a7-ce1d3b3a6128">
+    <PortalShell roleLabel={isSuperAdmin ? "Super Admin" : "Administrator"} userName={user.name || "Administrator"} navItems={nav} active={page} onNav={setPage} onLogout={onLogout} guideUrl="/user-guide.html">
       {page === "overview" && (
         <>
           <SectionHeader eyebrow="Dashboard" title="Institution Overview" />

@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>School ERP — User Guide</title>
+<style>
+  :root {
+    --paper: #f6f4ee;
+    --paper-raised: #efece3;
+    --ink: #1d2233;
+    --ink-soft: #4b5063;
+    --ink-faint: #767b8c;
+    --accent: #33507a;
+    --accent-strong: #22375a;
+    --accent-soft: #e2e8f1;
+    --accent-soft-border: #c3d0e2;
+    --gold: #93641f;
+    --gold-soft: #f2e6cd;
+    --gold-soft-border: #ddc38a;
+    --rule: #dcd6c8;
+    --danger: #9c3b3b;
+    --danger-soft: #f5e3e0;
+    --ok: #2f6f4e;
+    --ok-soft: #e3ede4;
+    --shadow: 0 1px 2px rgba(29,34,51,0.06);
+
+    --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", "URW Palladio", "Noto Serif", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14161c;
+      --paper-raised: #1b1e26;
+      --ink: #e8e5dc;
+      --ink-soft: #b6b9c4;
+      --ink-faint: #83879a;
+      --accent: #8fb0de;
+      --accent-strong: #b7cdec;
+      --accent-soft: #202a3c;
+      --accent-soft-border: #33445e;
+      --gold: #d8b06b;
+      --gold-soft: #332a17;
+      --gold-soft-border: #5c4a25;
+      --rule: #2c2f39;
+      --danger: #e2a29a;
+      --danger-soft: #3a2422;
+      --ok: #9cc9ab;
+      --ok-soft: #1e2f24;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14161c;
+    --paper-raised: #1b1e26;
+    --ink: #e8e5dc;
+    --ink-soft: #b6b9c4;
+    --ink-faint: #83879a;
+    --accent: #8fb0de;
+    --accent-strong: #b7cdec;
+    --accent-soft: #202a3c;
+    --accent-soft-border: #33445e;
+    --gold: #d8b06b;
+    --gold-soft: #332a17;
+    --gold-soft-border: #5c4a25;
+    --rule: #2c2f39;
+    --danger: #e2a29a;
+    --danger-soft: #3a2422;
+    --ok: #9cc9ab;
+    --ok-soft: #1e2f24;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] {
+    --paper: #f6f4ee;
+    --paper-raised: #efece3;
+    --ink: #1d2233;
+    --ink-soft: #4b5063;
+    --ink-faint: #767b8c;
+    --accent: #33507a;
+    --accent-strong: #22375a;
+    --accent-soft: #e2e8f1;
+    --accent-soft-border: #c3d0e2;
+    --gold: #93641f;
+    --gold-soft: #f2e6cd;
+    --gold-soft-border: #ddc38a;
+    --rule: #dcd6c8;
+    --danger: #9c3b3b;
+    --danger-soft: #f5e3e0;
+    --ok: #2f6f4e;
+    --ok-soft: #e3ede4;
+    --shadow: 0 1px 2px rgba(29,34,51,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration-color: var(--accent-soft-border); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; color: var(--ink); }
+
+  code, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--rule);
+    padding: 2.6rem 1.5rem 2rem;
+  }
+  .masthead-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+  }
+  .masthead h1 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 2.7rem);
+    letter-spacing: -0.01em;
+  }
+  .masthead p {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+  }
+  .masthead-meta {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+  .masthead-meta strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---------- Shell / layout ---------- */
+  .shell {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 2.4rem 1.5rem 5rem;
+    display: grid;
+    grid-template-columns: 234px minmax(0, 1fr);
+    gap: 3.2rem;
+    align-items: start;
+  }
+
+  .toc-mobile { display: none; }
+
+  nav.toc {
+    position: sticky;
+    top: 1.5rem;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    font-size: 0.87rem;
+  }
+  nav.toc .group + .group { margin-top: 1.5rem; }
+  nav.toc .group-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+  }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+  nav.toc a {
+    display: block;
+    padding: 0.28rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { color: var(--ink); background: var(--paper-raised); }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+
+  main { min-width: 0; }
+
+  section.block { padding-top: 0.5rem; margin-bottom: 3.4rem; scroll-margin-top: 1.2rem; }
+  section.block:first-child { margin-top: 0; }
+  .block h2 {
+    font-size: 1.5rem;
+    margin: 0 0 0.3rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .block > .lede { color: var(--ink-soft); margin: 0.8rem 0 1.4rem; max-width: 68ch; }
+  .block h3 { font-size: 1.12rem; margin: 2rem 0 0.6rem; }
+  .block h3:first-of-type { margin-top: 1.6rem; }
+  p { margin: 0.8rem 0; max-width: 68ch; }
+  ul, ol { padding-left: 1.3rem; margin: 0.8rem 0; max-width: 66ch; }
+  li { margin: 0.35rem 0; }
+  li::marker { color: var(--ink-faint); }
+
+  .group-divider {
+    margin: 3.6rem 0 3rem;
+    border: none;
+    border-top: 1px solid var(--rule);
+  }
+  .part-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+    margin: 0 0 0.4rem;
+  }
+  .part-title { margin: 0 0 2rem; font-size: 1.9rem; }
+
+  /* ---------- Role pill ---------- */
+  .role-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    border: 1px solid var(--accent-soft-border);
+  }
+  .role-head { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; margin: 2rem 0 0.4rem; }
+  .role-head:first-of-type { margin-top: 1.6rem; }
+  .role-head h3 { margin: 0; }
+
+  /* ---------- Cards / callouts ---------- */
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    box-shadow: var(--shadow);
+  }
+  .callout {
+    border-left: 3px solid var(--gold);
+    background: var(--gold-soft);
+    border-radius: 4px;
+    padding: 0.9rem 1.1rem;
+    margin: 1.1rem 0;
+    font-size: 0.94rem;
+    color: var(--ink);
+  }
+  .callout p { margin: 0.4rem 0; max-width: none; }
+  .callout strong { color: var(--ink); }
+  .callout.warn { border-left-color: var(--danger); background: var(--danger-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+
+  /* ---------- Credentials / ledger card ---------- */
+  .cred-card {
+    border: 1px solid var(--gold-soft-border);
+    background: var(--gold-soft);
+    border-radius: 10px;
+    padding: 1.4rem 1.5rem 1.6rem;
+    margin: 1.2rem 0 1.6rem;
+  }
+  .cred-card .cred-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+  }
+  .cred-card .cred-title h4 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+  .cred-card .cred-title span {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+  }
+  table.cred {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  table.cred th {
+    text-align: left;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    padding: 0 0.6rem 0.5rem 0;
+    border-bottom: 1px solid var(--gold-soft-border);
+  }
+  table.cred td {
+    padding: 0.55rem 0.6rem 0.55rem 0;
+    border-bottom: 1px solid var(--gold-soft-border);
+    vertical-align: top;
+  }
+  table.cred tr:last-child td { border-bottom: none; }
+  table.cred td.role { font-weight: 600; white-space: nowrap; }
+  table.cred td .tab-note { display: block; font-size: 0.78rem; color: var(--ink-faint); font-weight: 400; }
+  table.cred code {
+    background: var(--paper);
+    border: 1px solid var(--gold-soft-border);
+    border-radius: 4px;
+    padding: 0.12rem 0.4rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* ---------- Generic data table ---------- */
+  .table-wrap { overflow-x: auto; margin: 1rem 0 1.4rem; }
+  table.data { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 0.92rem; }
+  table.data th {
+    text-align: left;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    padding: 0.5rem 0.8rem 0.5rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.data td {
+    padding: 0.6rem 0.8rem 0.6rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+  table.data td:first-child { color: var(--ink); font-weight: 600; }
+  table.data tr:last-child td { border-bottom: none; }
+
+  /* ---------- Nav-item list (feature list per role) ---------- */
+  dl.feat { margin: 0.8rem 0 0; border-top: 1px solid var(--rule); }
+  dl.feat > div { display: grid; grid-template-columns: 168px minmax(0,1fr); gap: 0.4rem 1.2rem; padding: 0.7rem 0; border-bottom: 1px solid var(--rule); }
+  dl.feat dt { font-weight: 600; color: var(--ink); font-size: 0.94rem; }
+  dl.feat dd { margin: 0; color: var(--ink-soft); font-size: 0.94rem; }
+
+  @media (max-width: 640px) {
+    dl.feat > div { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+
+  /* ---------- Numbered steps (genuine sequence: admission wizard) ---------- */
+  ol.steps { list-style: none; margin: 1.2rem 0; padding: 0; counter-reset: step; }
+  ol.steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 0 2.6rem;
+    margin: 0 0 1.3rem;
+    max-width: 66ch;
+  }
+  ol.steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: -0.1rem;
+    width: 1.8rem; height: 1.8rem;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft-border);
+    color: var(--accent-strong);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.92rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps li strong { display: block; color: var(--ink); margin-bottom: 0.15rem; }
+  ol.steps li p { margin: 0.2rem 0 0; color: var(--ink-soft); font-size: 0.95rem; }
+
+  /* ---------- Not-built list ---------- */
+  ul.gaps { list-style: none; margin: 1rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+  ul.gaps li {
+    display: flex; gap: 0.7rem;
+    padding: 0.8rem 1rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    max-width: none;
+  }
+  ul.gaps li .x {
+    flex: none;
+    color: var(--danger);
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+  ul.gaps li div { color: var(--ink-soft); font-size: 0.94rem; }
+  ul.gaps li div strong { color: var(--ink); }
+
+  footer.page-footer {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; gap: 1.6rem; }
+    nav.toc.desktop-toc { display: none; }
+    .toc-mobile {
+      display: block;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--paper-raised);
+      padding: 0.2rem 1rem;
+    }
+    .toc-mobile summary {
+      cursor: pointer;
+      padding: 0.7rem 0;
+      font-weight: 600;
+      font-size: 0.92rem;
+      list-style: none;
+    }
+    .toc-mobile summary::-webkit-details-marker { display: none; }
+    .toc-mobile[open] summary { border-bottom: 1px solid var(--rule); }
+    .toc-mobile nav { padding: 0.6rem 0 0.9rem; max-height: 50vh; overflow-y: auto; }
+    .toc-mobile .group + .group { margin-top: 1rem; }
+    .toc-mobile .group-label { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; margin: 0 0 0.35rem; }
+    .toc-mobile ul { list-style: none; margin: 0; padding: 0; }
+    .toc-mobile a { display: block; padding: 0.3rem 0; color: var(--ink-soft); text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="eyebrow">User Guide</p>
+    <h1>School ERP</h1>
+    <p>A day-to-day reference for everyone who signs in — from the front office and faculty staff room to the admissions desk, the library counter, and students checking their own results and fees. Organized by who you are and what you're trying to do.</p>
+    <div class="masthead-meta">
+      <span><strong>6</strong> account roles</span>
+      <span><strong>Web app</strong> — desktop &amp; mobile browser</span>
+      <span>Guide current as of <strong>5 Aug 2026</strong></span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc desktop-toc" aria-label="Table of contents">
+    <div class="group">
+      <p class="group-label">Start Here</p>
+      <ul>
+        <li><a href="#logging-in">Logging in</a></li>
+        <li><a href="#demo-accounts">Demo accounts</a></li>
+        <li><a href="#admission">Applying for admission</a></li>
+        <li><a href="#admissions-review">Reviewing applications</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <p class="group-label">Roles &amp; Dashboards</p>
+      <ul>
+        <li><a href="#role-admin">Super Admin &amp; Admin</a></li>
+        <li><a href="#role-accounts">Accounts</a></li>
+        <li><a href="#role-librarian">Librarian</a></li>
+        <li><a href="#role-faculty">Faculty</a></li>
+        <li><a href="#role-student">Student</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <p class="group-label">Core Workflows</p>
+      <ul>
+        <li><a href="#fees">Fees &amp; payments</a></li>
+        <li><a href="#attendance">Attendance</a></li>
+        <li><a href="#grades">Grades &amp; results</a></li>
+        <li><a href="#notices">Notices</a></li>
+        <li><a href="#leave">Leave requests</a></li>
+        <li><a href="#library">Library</a></li>
+        <li><a href="#support">Support / helpdesk</a></li>
+        <li><a href="#reports">Reports center</a></li>
+        <li><a href="#csv-import">Importing data by CSV</a></li>
+      </ul>
+    </div>
+    <div class="group">
+      <p class="group-label">Good to Know</p>
+      <ul>
+        <li><a href="#not-built">What isn't built yet</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <details class="toc-mobile">
+    <summary>Contents</summary>
+    <nav aria-label="Table of contents (mobile)">
+      <div class="group">
+        <p class="group-label">Start Here</p>
+        <ul>
+          <li><a href="#logging-in">Logging in</a></li>
+          <li><a href="#demo-accounts">Demo accounts</a></li>
+          <li><a href="#admission">Applying for admission</a></li>
+          <li><a href="#admissions-review">Reviewing applications</a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <p class="group-label">Roles &amp; Dashboards</p>
+        <ul>
+          <li><a href="#role-admin">Super Admin &amp; Admin</a></li>
+          <li><a href="#role-accounts">Accounts</a></li>
+          <li><a href="#role-librarian">Librarian</a></li>
+          <li><a href="#role-faculty">Faculty</a></li>
+          <li><a href="#role-student">Student</a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <p class="group-label">Core Workflows</p>
+        <ul>
+          <li><a href="#fees">Fees &amp; payments</a></li>
+          <li><a href="#attendance">Attendance</a></li>
+          <li><a href="#grades">Grades &amp; results</a></li>
+          <li><a href="#notices">Notices</a></li>
+          <li><a href="#leave">Leave requests</a></li>
+          <li><a href="#library">Library</a></li>
+          <li><a href="#support">Support / helpdesk</a></li>
+          <li><a href="#reports">Reports center</a></li>
+          <li><a href="#csv-import">Importing data by CSV</a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <p class="group-label">Good to Know</p>
+        <ul><li><a href="#not-built">What isn't built yet</a></li></ul>
+      </div>
+    </nav>
+  </details>
+
+  <main>
+
+    <p class="part-label">Part One</p>
+    <h2 class="part-title">Start Here</h2>
+
+    <section class="block" id="logging-in">
+      <h2>Logging in</h2>
+      <p class="lede">The sign-in screen has three tabs. Pick the one that matches who you are — the app then reads your actual account role from the server and sends you to the right dashboard automatically.</p>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Tab</th><th>Who it's for</th><th>You sign in with</th></tr></thead>
+          <tbody>
+            <tr><td>Student</td><td>Applicants and enrolled students</td><td>Email address + password</td></tr>
+            <tr><td>Staff</td><td>Faculty, Accounts, Librarian</td><td>Email address + password</td></tr>
+            <tr><td>Administrator</td><td>Admin and Super Admin</td><td>Username + password</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Under the <strong>Staff</strong> tab, every non-teaching role — Accounts, Librarian — signs in the same way Faculty does. The server looks up your actual role and opens the matching dashboard; the tab is just where you start, not what decides your permissions.</p>
+
+      <div class="callout">
+        <p><strong>Staff accounts aren't self-service.</strong> There's no sign-up form for the Staff or Administrator tabs — an Admin or Super Admin has to create your account first (Faculty &amp; Staff → Add). If you don't have credentials yet, ask your Admin.</p>
+      </div>
+
+      <p>A few things happen automatically based on your account's status:</p>
+      <ul>
+        <li>A deactivated staff or admin account is blocked at login with a clear message — contact your Admin to reactivate it.</li>
+        <li>If you're a student whose application is still a <strong>draft</strong>, logging in drops you straight back into the admission wizard where you left off, instead of a dashboard.</li>
+        <li>If your application is <strong>pending review</strong> or was <strong>rejected</strong>, you'll see a read-only status screen instead of the full student dashboard — the dashboard only unlocks once an Admin approves you.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="demo-accounts">
+      <h2>Demo accounts</h2>
+      <p class="lede">Ready-to-use sandbox logins for trying out each side of the app.</p>
+
+      <div class="cred-card">
+        <div class="cred-title">
+          <h4>Sign-in credentials</h4>
+          <span>Sandbox — not production</span>
+        </div>
+        <table class="cred">
+          <thead>
+            <tr><th>Role</th><th>Username / Email</th><th>Password</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="role">Administrator<span class="tab-note">Administrator tab</span></td>
+              <td><code>admin</code></td>
+              <td><code>admin123</code></td>
+            </tr>
+            <tr>
+              <td class="role">Faculty<span class="tab-note">Staff tab</span></td>
+              <td><code>avni.bhatt85@dummy-staff.test</code></td>
+              <td><code>faculty123</code></td>
+            </tr>
+            <tr>
+              <td class="role">Student<span class="tab-note">Student tab</span></td>
+              <td><code>pari.verma35@dummy-student.test</code></td>
+              <td><code>y24qgmqf</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout warn">
+        <p><strong>Change the Administrator password before going live.</strong> The Super Admin account currently has no in-app "change password" flow — updating it means changing the value directly in the database. Do this before handing the system to real users.</p>
+      </div>
+    </section>
+
+    <section class="block" id="admission">
+      <h2>Applying for admission</h2>
+      <p class="lede">Prospective students apply through a five-step form — no account needed until the very end. Click <strong>Apply for Admission</strong> under the Student tab on the sign-in screen to start.</p>
+
+      <ol class="steps">
+        <li>
+          <strong>Basic &amp; Personal Details</strong>
+          <p>Name, date of birth, gender, email, phone, emergency and WhatsApp numbers, Aadhar, a photo and signature upload, and the password you'll use to sign in later. Email and phone are checked for uniqueness as you type.</p>
+        </li>
+        <li>
+          <strong>Address</strong>
+          <p>Permanent address, contact number, state/city/PIN, domicile state, and an optional separate current address.</p>
+        </li>
+        <li>
+          <strong>Family Details</strong>
+          <p>Father's and mother's name, phone, email, and occupation; guardian details if applicable.</p>
+        </li>
+        <li>
+          <strong>Education &amp; Class</strong>
+          <p>The course/class you're applying to, medium of instruction, and — unless you're applying to Nursery or Play Group — your last school, exam year, and result.</p>
+        </li>
+        <li>
+          <strong>Academic Details &amp; Documents</strong>
+          <p>An editable table of every qualifying exam you've passed, plus scanned copies of your documents (JPG, PNG, or GIF, under 5&nbsp;MB each). Each academic record needs a matching uploaded document. You'll also tick a Terms &amp; Conditions box and, if online payment is enabled, pay the admission fee here before you can submit.</p>
+        </li>
+      </ol>
+
+      <div class="callout">
+        <p><strong>Save each step before moving on.</strong> "Save Step" writes your progress to the server as a draft — you can log out and come back later, and logging back in will drop you right back into the form where you left off. "Next" is blocked until the current step is saved.</p>
+      </div>
+
+      <p>After the final submit you'll see a confirmation screen with a preview of the registration email, and a button to go sign in. From there you can track your application's status — see <a href="#logging-in">Logging in</a> for what a pending or rejected application looks like.</p>
+    </section>
+
+    <section class="block" id="admissions-review">
+      <h2>Reviewing applications <span class="role-pill">Admin</span></h2>
+      <p class="lede">Every submitted application lands in <strong>Admissions Registry</strong>, sorted into Pending, Approved, and Rejected tabs — filterable by class and searchable by name, email, or phone.</p>
+      <ul>
+        <li>Open <strong>View</strong> on any row for the full application, including the Academic Details table and every uploaded document.</li>
+        <li><strong>Approve</strong> assigns a roll number automatically and moves the student to the Students directory.</li>
+        <li><strong>Reject</strong> requires a short reason — the applicant sees this reason on their status screen.</li>
+        <li>Select multiple rows to bulk-delete applications, or bring in a batch of existing applicants with <strong>Import CSV</strong>.</li>
+      </ul>
+    </section>
+
+    <hr class="group-divider" />
+    <p class="part-label">Part Two</p>
+    <h2 class="part-title">Roles &amp; Dashboards</h2>
+    <p class="lede" style="margin-top:-1.6rem;">What each role sees in their sidebar, and what each screen is for.</p>
+
+    <section class="block" id="role-admin">
+      <div class="role-head"><span class="role-pill">Super Admin</span><span class="role-pill">Admin</span><h3>Super Admin &amp; Admin</h3></div>
+      <p>Super Admin is the top of the hierarchy — it can't be edited, restricted, or deleted by anyone, including another Super Admin. Admin accounts have full access by default, but Super Admin can restrict exactly which modules a given Admin can use; that Admin's sidebar automatically shows only what they've been granted.</p>
+
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Enrolled students, pending admissions, faculty count, and fees collected at a glance, plus a feed of recent notices.</dd></div>
+        <div><dt>Admissions Registry</dt><dd>Review, approve, or reject applications — see <a href="#admissions-review">Reviewing applications</a>.</dd></div>
+        <div><dt>Students</dt><dd>Directory of enrolled students — edit records, import in bulk.</dd></div>
+        <div><dt>Faculty &amp; Staff</dt><dd>Create and edit every staff account — set their role, department, designation, and active status. This is the only place staff accounts get created.</dd></div>
+        <div><dt>Classes</dt><dd>Manage the courses/classes students apply to and enroll in.</dd></div>
+        <div><dt>Fees</dt><dd>Fee ledger, cash payment entry, EMI plans, choose the active online payment gateway, and trigger due-date reminders. See <a href="#fees">Fees &amp; payments</a>.</dd></div>
+        <div><dt>Reports</dt><dd>The full Reports Center — see <a href="#reports">Reports center</a>.</dd></div>
+        <div><dt>Notices</dt><dd>Post notices to the school-wide board; can delete any notice, including ones Faculty posted.</dd></div>
+        <div><dt>Library</dt><dd>Full library administration — catalog, issue/return desk, reports, and borrowing-policy settings. See <a href="#library">Library</a>.</dd></div>
+        <div><dt>Support</dt><dd>See and reply to every helpdesk ticket, and change its status.</dd></div>
+        <div><dt>Staff Accounts <span class="tab-note">Super Admin only</span></dt><dd>Create or deactivate other Admin accounts, and tick exactly which modules a given Admin can access.</dd></div>
+      </dl>
+    </section>
+
+    <section class="block" id="role-accounts">
+      <div class="role-head"><span class="role-pill">Accounts</span><h3>Accounts</h3></div>
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Enrolled students, fees collected, and outstanding balance at a glance.</dd></div>
+        <div><dt>Fees &amp; Receipts</dt><dd>Full fee ledger with the same edit rights as Admin — record payments, manage EMI plans, print receipts.</dd></div>
+        <div><dt>Payment Reports</dt><dd>The Reports Center, focused on payment/collection reports.</dd></div>
+        <div><dt>My Leave</dt><dd>Apply for your own leave.</dd></div>
+      </dl>
+    </section>
+
+    <section class="block" id="role-librarian">
+      <div class="role-head"><span class="role-pill">Librarian</span><h3>Librarian</h3></div>
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Library activity summary.</dd></div>
+        <div><dt>Library</dt><dd>Run the desk day-to-day — catalog, issue and return, and reports. Borrowing-policy settings are visible but read-only; changing loan periods, limits, or fine rules requires an Admin or Super Admin login.</dd></div>
+        <div><dt>My Leave</dt><dd>Apply for your own leave.</dd></div>
+      </dl>
+    </section>
+
+    <section class="block" id="role-faculty">
+      <div class="role-head"><span class="role-pill">Faculty</span><h3>Faculty</h3></div>
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Your subject, total students, and notices posted.</dd></div>
+        <div><dt>My Students</dt><dd>The students in your classes.</dd></div>
+        <div><dt>Attendance</dt><dd>Mark Present/Absent by class and date.</dd></div>
+        <div><dt>Grades</dt><dd>Enter results for your classes.</dd></div>
+        <div><dt>Fees</dt><dd>View student fee status.</dd></div>
+        <div><dt>Notices</dt><dd>Post to the notice board (you can't delete notices, including your own — ask Admin).</dd></div>
+        <div><dt>Library</dt><dd>Browse the catalog and manage your own loans, same as a student's Library view minus the reading log.</dd></div>
+      </dl>
+      <div class="callout warn">
+        <p><strong>Faculty currently has no "My Leave" tab.</strong> Accounts and Librarian can apply for their own leave from the dashboard; Faculty accounts can't yet. If you're teaching staff and need leave approved, ask Admin to log it on your behalf for now.</p>
+      </div>
+    </section>
+
+    <section class="block" id="role-student">
+      <div class="role-head"><span class="role-pill">Student</span><h3>Student</h3></div>
+      <dl class="feat">
+        <div><dt>Overview</dt><dd>Your dashboard home.</dd></div>
+        <div><dt>My Application</dt><dd>A read-only summary of the admission form you submitted.</dd></div>
+        <div><dt>Edit Profile</dt><dd>Update your own details.</dd></div>
+        <div><dt>Attendance</dt><dd>Your attendance record and running percentage — flagged if it drops below 75%.</dd></div>
+        <div><dt>Grades</dt><dd>Your results by semester and exam type, with a detail view for subject-wise marks.</dd></div>
+        <div><dt>Fees &amp; Payments</dt><dd>Balance, due dates, EMI plan (if any), full payment history, and Pay Online / Pay EMI Now.</dd></div>
+        <div><dt>Classes</dt><dd>Browse the course catalog.</dd></div>
+        <div><dt>Library</dt><dd>Search the catalog, track your loans, and your personal reading log.</dd></div>
+        <div><dt>Notifications</dt><dd>Automated alerts — fee reminders, support replies, reading milestones.</dd></div>
+        <div><dt>Notice Board</dt><dd>Everything posted school-wide.</dd></div>
+        <div><dt>Support</dt><dd>Open a helpdesk ticket and reply in the thread.</dd></div>
+      </dl>
+    </section>
+
+    <hr class="group-divider" />
+    <p class="part-label">Part Three</p>
+    <h2 class="part-title">Core Workflows</h2>
+
+    <section class="block" id="fees">
+      <h2>Fees &amp; payments</h2>
+      <p class="lede">Available to Admin, Accounts, and (view level) Faculty for staff-side entry; students pay their own balance online.</p>
+      <h3>Recording a payment (staff)</h3>
+      <p>Cash or offline payments are entered directly against a student's ledger from Fees &amp; Receipts, including EMI plans (installment amount, tenure, how many installments are paid vs. remaining). Every payment generates a unique transaction ID, a printable receipt, and a simulated email receipt.</p>
+      <h3>Paying online (student)</h3>
+      <p>From Fees &amp; Payments, a student can choose <strong>Pay Online</strong> or <strong>Pay EMI Now</strong>. Two gateways are supported, but only one is active school-wide at a time — Admin switches between them from Fees:</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Gateway</th><th>How it works</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td>Razorpay</td><td>Opens a popup for cards, UPI, or netbanking — the browser never leaves the app.</td><td>Works out of the box, including on a local/testing setup.</td></tr>
+            <tr><td>PayU Money</td><td>Redirects the browser to PayU's own payment page, then back to the school's server.</td><td>Needs the server reachable from the public internet to receive the result.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A student can pay their admission fee even before their application is approved — it's recorded against their record and reconciled automatically once Admin approves them.</p>
+      <h3>Due-date reminders</h3>
+      <p>Anyone with an outstanding balance due within 30 days gets an automatic dashboard notification and email once a day. Admin can also trigger this on demand from Fees → <strong>Send Reminders Now</strong> instead of waiting for the daily check. A student won't be reminded again for 7 days after their last reminder, so it doesn't nag.</p>
+    </section>
+
+    <section class="block" id="attendance">
+      <h2>Attendance <span class="role-pill">Faculty</span></h2>
+      <p>Pick a class and a date — every student defaults to Present, and you tap to flip anyone to Absent before saving. Students see their own record as a running percentage, flagged if it falls below 75%.</p>
+    </section>
+
+    <section class="block" id="grades">
+      <h2>Grades &amp; results <span class="role-pill">Faculty</span></h2>
+      <p>Create a result set per student by semester and exam type, entering subject-by-subject marks against each subject's maximum. Students see their results grouped by semester and exam type, with a detail view showing subject-wise marks, totals, and overall percentage.</p>
+    </section>
+
+    <section class="block" id="notices">
+      <h2>Notices</h2>
+      <p>Admin and Faculty can both post to the school-wide Notice Board — Admin can delete any notice; Faculty can post but not delete. Every notice shows who posted it and their role. Everyone, including students, sees the board in chronological order.</p>
+    </section>
+
+    <section class="block" id="leave">
+      <h2>Leave requests</h2>
+      <p>Accounts and Librarian can each apply for their own leave from <strong>My Leave</strong> — pick a type, dates, and a reason. Admin/Super Admin sees every request and approves or rejects it with an optional note.</p>
+      <div class="callout warn">
+        <p>Faculty accounts don't have a My Leave tab yet — see the note under <a href="#role-faculty">Faculty</a>.</p>
+      </div>
+    </section>
+
+    <section class="block" id="library">
+      <h2>Library</h2>
+      <p class="lede">A real catalog and circulation system, not just a spec — scoped to what a school library actually needs day-to-day.</p>
+
+      <h3>At the desk <span class="role-pill">Librarian</span><span class="role-pill">Admin</span></h3>
+      <dl class="feat">
+        <div><dt>Catalog</dt><dd>Add, edit, or remove titles and copies; bulk-load a collection with Import CSV, matched by accession number.</dd></div>
+        <div><dt>Issue &amp; Return</dt><dd>Issue a copy to a student or teacher by accession number, process returns, and mark a fine paid or waived.</dd></div>
+        <div><dt>Reports</dt><dd>Overdue list, currently-issued list, most-borrowed titles, reading-program participation, and a full catalog export.</dd></div>
+        <div><dt>Settings</dt><dd>Per grade-band policy — loan period, max simultaneous loans, whether overdue books trigger a borrowing hold or a fine (with rate and cap), and the renewal limit. Editable by Admin/Super Admin; Librarian sees it read-only.</dd></div>
+      </dl>
+
+      <h3>Browsing &amp; borrowing <span class="role-pill">Student</span><span class="role-pill">Faculty</span></h3>
+      <p>Search the catalog by title, author, or reading level, and see how many copies are available. <strong>There's no self-checkout</strong> — bring the book, or its accession number, to the librarian's desk to have it issued. Once issued, it shows up under <strong>My Loans</strong> with its due date; you can renew it yourself as long as it isn't overdue and you're under the renewal limit.</p>
+      <p>Students additionally get a <strong>Reading Log</strong> — a running count of completed books with milestone badges at 5, 10, 20, 50, and 100 books read.</p>
+      <p>Borrowing rules follow your grade band automatically (younger grades typically get shorter, simpler terms); teachers borrow under one fixed staff policy — 30-day loans, 5 books at a time, no fines.</p>
+    </section>
+
+    <section class="block" id="support">
+      <h2>Support / helpdesk</h2>
+      <p>Any student can open a ticket — a subject, a message, and an optional attachment (JPG, PNG, GIF, or PDF, under 5&nbsp;MB) — and reply in the thread afterward. Staff with helpdesk access see every ticket, can reply (which reopens a resolved or closed one), and set its status. A staff reply automatically shows up in the student's Notifications.</p>
+    </section>
+
+    <section class="block" id="reports">
+      <h2>Reports center <span class="role-pill">Admin</span><span class="role-pill">Accounts</span></h2>
+      <p>Seven report types, each filterable and exportable to CSV, and formatted to print cleanly:</p>
+      <ul>
+        <li>Admission Report</li>
+        <li>Student Report</li>
+        <li>Fee Report</li>
+        <li>EMI Report</li>
+        <li>Pending Fee</li>
+        <li>Class-Wise Report</li>
+        <li>Daily Collection</li>
+      </ul>
+    </section>
+
+    <section class="block" id="csv-import">
+      <h2>Importing data by CSV <span class="role-pill">Admin</span></h2>
+      <p class="lede">Every "Import CSV" button uses the same forgiving importer — column headers are matched flexibly, nothing is silently dropped, and any column that doesn't match a known field is kept as "Additional Information" instead of being discarded.</p>
+      <ul>
+        <li><strong>Admissions Registry</strong> — bulk-load applications/students.</li>
+        <li><strong>Students directory</strong> — student records.</li>
+        <li><strong>Fee Ledger</strong> — fee and transaction rows.</li>
+        <li><strong>Library Catalog</strong> — book titles and copies, matched by accession number so re-importing an updated list updates existing entries instead of duplicating them.</li>
+      </ul>
+    </section>
+
+    <hr class="group-divider" />
+    <p class="part-label">Part Four</p>
+    <h2 class="part-title">Good to Know</h2>
+
+    <section class="block" id="not-built">
+      <h2>What isn't built yet</h2>
+      <p class="lede">So you don't go looking for it. None of these are bugs — they're simply out of scope for this version.</p>
+      <ul class="gaps">
+        <li><span class="x">✕</span><div><strong>No Parent role.</strong> There's no parent login or parent-facing view anywhere in the app — fee balances, grades, attendance, and library loans are visible only to the student and to staff.</div></li>
+        <li><span class="x">✕</span><div><strong>No student ID card feature.</strong></div></li>
+        <li><span class="x">✕</span><div><strong>No direct staff-to-student messaging.</strong> The student Notifications inbox only fills up automatically — fee reminders, support replies, reading milestones — there's no "compose a message" screen for staff.</div></li>
+        <li><span class="x">✕</span><div><strong>Faculty can't apply for their own leave</strong> through the app yet, unlike Accounts and Librarian.</div></li>
+        <li><span class="x">✕</span><div><strong>Library reservations and barcode/RFID scanning</strong> aren't built — issuing is by accession number, and there's no hold queue for a book that's currently out.</div></li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer class="page-footer">
+  School ERP User Guide — reflects the application as currently implemented, not the original planning documents.
+</footer>
+
+<script>
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc.desktop-toc a'));
+    var sections = links
+      .map(function (a) { return document.querySelector(a.getAttribute('href')); })
+      .filter(Boolean);
+
+    if (!('IntersectionObserver' in window) || sections.length === 0) return;
+
+    var byId = {};
+    links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = byId[entry.target.id];
+        if (!link) return;
+        if (entry.isIntersecting) {
+          links.forEach(function (l) { l.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+
+    sections.forEach(function (s) { observer.observe(s); });
+  })();
+</script>
+</body>
+</html>
