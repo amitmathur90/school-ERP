@@ -1928,7 +1928,7 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
 
 /* ============================== PORTAL SHELL ============================== */
 
-function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, children }) {
+function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, children, guideUrl }) {
   const [navOpen, setNavOpen] = useState(false);
   const handleNav = (key) => { onNav(key); setNavOpen(false); };
   return (
@@ -1958,6 +1958,17 @@ function PortalShell({ roleLabel, userName, navItems, active, onNav, onLogout, c
               )}
             </div>
           ))}
+          {guideUrl && (
+            <a
+              href={guideUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-item"
+              style={{ display: "flex", alignItems: "center", gap: 11, textDecoration: "none" }}
+            >
+              <BookOpen size={16} /> User Guide
+            </a>
+          )}
         </div>
         <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{userName}</div>
@@ -2024,7 +2035,7 @@ function AdminPortal({ user, store, actions, onLogout }) {
   const totalCollected = Object.values(fees).reduce((sum, f) => sum + (f.paid || 0), 0);
 
   return (
-    <PortalShell roleLabel={isSuperAdmin ? "Super Admin" : "Administrator"} userName={user.name || "Administrator"} navItems={nav} active={page} onNav={setPage} onLogout={onLogout}>
+    <PortalShell roleLabel={isSuperAdmin ? "Super Admin" : "Administrator"} userName={user.name || "Administrator"} navItems={nav} active={page} onNav={setPage} onLogout={onLogout} guideUrl="https://claude.ai/code/artifact/07ee084d-43a4-4f7f-83a7-ce1d3b3a6128">
       {page === "overview" && (
         <>
           <SectionHeader eyebrow="Dashboard" title="Institution Overview" />
