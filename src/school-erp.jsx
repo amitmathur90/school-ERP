@@ -1866,6 +1866,18 @@ function LoginScreen({ onLogin, onGoToAdmission, prefillEmail }) {
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       backgroundImage: `url(${loginBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
     }}>
+      <a
+        href="https://claude.ai/code/artifact/07ee084d-43a4-4f7f-83a7-ce1d3b3a6128"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          position: "fixed", top: 18, right: 18, display: "inline-flex", alignItems: "center", gap: 6,
+          background: "rgba(255,255,255,0.92)", color: "var(--maroon)", fontWeight: 600, fontSize: 13,
+          padding: "8px 14px", borderRadius: 999, textDecoration: "none", boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+        }}
+      >
+        <BookOpen size={14} /> User Guide
+      </a>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.85)", padding: "10px 18px", borderRadius: 999 }}><CollegeMark /></div>
