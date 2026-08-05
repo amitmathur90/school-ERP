@@ -479,6 +479,27 @@
     .toc-mobile ul { list-style: none; margin: 0; padding: 0; }
     .toc-mobile a { display: block; padding: 0.3rem 0; color: var(--ink-soft); text-decoration: none; }
   }
+
+  /* ---------- Print / PDF ---------- */
+  /* The 900px responsive breakpoint above is evaluated against the printed
+     page's width, not the browser viewport, and a print-sized page is
+     narrower than 900px — so without this, printing silently falls back to
+     the mobile layout (sidebar collapsed into a closed <details>). This
+     forces the desktop two-column layout back on for print regardless of
+     paper size. */
+  @media print {
+    a { color: var(--accent); }
+    .toc-mobile { display: none !important; }
+    nav.toc.desktop-toc {
+      display: block !important;
+      position: static !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .shell { grid-template-columns: 190px minmax(0, 1fr) !important; gap: 2rem !important; }
+    section.block, figure.shot, .card, .cred-card, .callout { break-inside: avoid; }
+    .part-title, .block h2 { break-after: avoid; }
+  }
 </style>
 </head>
 <body>
