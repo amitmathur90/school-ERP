@@ -10,7 +10,7 @@ import '../../shared/models/course.dart';
 import '../admissions/admission.dart';
 import '../admissions/admissions_repository.dart';
 
-const _courseGroups = ['Graduation', 'Post Graduation', 'Diploma'];
+const _courseGroups = ['Pre-Primary', 'Primary', 'Middle', 'Secondary', 'Senior Secondary'];
 final _inr = NumberFormat.decimalPattern('en_IN');
 
 /// Mirrors CoursesManager (src/law-college-erp.jsx:3214): a grid of course
@@ -178,7 +178,7 @@ class _CoursesScreenState extends ConsumerState<CoursesScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${c.code} · ${c.group ?? 'Graduation'}',
+                                    '${c.code} · ${c.group ?? 'Primary'}',
                                     style: const TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                   ),
                                   const SizedBox(height: 4),

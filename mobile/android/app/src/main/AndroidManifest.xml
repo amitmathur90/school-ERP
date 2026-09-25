@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Only debug/profile builds get this automatically; release APKs need it to reach the API. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="erp_app"
+        android:label="School ERP"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -43,7 +43,7 @@ class StudentCoursesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${c.code} · ${c.group ?? 'Graduation'}${isMine ? ' · Your Programme' : ''}',
+                          '${c.code} · ${c.group ?? 'Primary'}${isMine ? ' · Your Programme' : ''}',
                           style: TextStyle(color: isMine ? AppColors.gold : AppColors.slate, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),

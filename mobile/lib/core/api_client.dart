@@ -15,9 +15,14 @@ import 'secure_storage.dart';
 ///   (e.g. `http://192.168.1.23:4000/api`). Update [_lanOverride] once you
 ///   know that IP, or switch this to your deployed Render URL for
 ///   production.
+/// - Release APKs pass the deployed API at build time instead, which wins
+///   over everything above:
+///   `flutter build apk --release --dart-define=API_BASE_URL=https://school-erp-c8j0.onrender.com/api`
+const String _buildTimeApiBase = String.fromEnvironment('API_BASE_URL');
 const String? _lanOverride = 'http://127.0.0.1:4000/api'; // physical device reaches this over USB via `adb reverse tcp:4000 tcp:4000`
 
 String get apiBaseUrl {
+  if (_buildTimeApiBase.isNotEmpty) return _buildTimeApiBase;
   final override = _lanOverride;
   if (override != null) return override;
   if (kIsWeb) return 'http://localhost:4000/api';

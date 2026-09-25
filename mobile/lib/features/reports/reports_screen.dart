@@ -460,7 +460,7 @@ class _CourseWiseReport extends StatelessWidget {
             final pending = enrolled.fold<num>(0, (sum, s) => sum + (feeByStudent[s.id]?.balance ?? 0));
             return [
               c.name,
-              c.group ?? 'Graduation',
+              c.group ?? 'Primary',
               '$seats',
               '${enrolled.length}',
               '${(seats - enrolled.length).clamp(0, seats)}',

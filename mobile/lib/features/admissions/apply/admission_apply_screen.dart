@@ -41,21 +41,34 @@ const _indiaStates = [
 ];
 
 const _occupations = ['Govt.', 'Private', 'Business', 'Others'];
-const _courseGroups = ['Graduation', 'Post Graduation', 'Diploma'];
-const _academicNameOptions = ['10th', '12th', 'Graduation', 'Post Graduation', 'Diploma', 'Other'];
+// Kept in step with the web app's COURSE_GROUPS / ACADEMIC_NAME_OPTIONS /
+// DOCUMENT_TYPES / ACADEMIC_TO_DOCUMENT_TYPES (src/school-erp.jsx).
+const _courseGroups = ['Pre-Primary', 'Primary', 'Middle', 'Secondary', 'Senior Secondary'];
+const _academicNameOptions = ['Previous Class Report Card', '10th Board', '12th Board', 'Other'];
 const _documentTypes = [
-  '10th Marksheet', '12th Marksheet', 'Graduation Marksheet', 'Graduation Certificate',
-  'Transfer Certificate', 'Migration Certificate', 'Character Certificate',
+  'Report Card / Transfer Certificate', '10th Marksheet', '12th Marksheet',
+  'Birth Certificate', 'Transfer Certificate', 'Migration Certificate', 'Character Certificate',
   'Aadhar Card', 'Category Certificate', 'Income Certificate', 'Photo', 'Signature', 'Other',
 ];
 const _academicToDocumentTypes = {
-  '10th': ['10th Marksheet'],
-  '12th': ['12th Marksheet'],
-  'Graduation': ['Graduation Marksheet', 'Graduation Certificate'],
-  'Post Graduation': ['Graduation Marksheet', 'Graduation Certificate'],
-  'Diploma': ['Other'],
+  'Previous Class Report Card': ['Report Card / Transfer Certificate'],
+  '10th Board': ['10th Marksheet'],
+  '12th Board': ['12th Marksheet'],
   'Other': ['Other'],
 };
+
+// Youngest admissible applicant (Play Group) is 2½ years old on the day the
+// form is filled in — same rule as the web form.
+const _minAdmissionAgeMonths = 30;
+DateTime _latestAdmissibleDob() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month - _minAdmissionAgeMonths, now.day);
+}
+
+bool _isUnderAge(String dob) {
+  final d = DateTime.tryParse(dob);
+  return d != null && d.isAfter(_latestAdmissibleDob());
+}
 
 String _localId(String prefix) => '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${(DateTime.now().microsecond % 997)}';
 
@@ -63,9 +76,9 @@ Map<String, String> _blankFields() => {
       'firstName': '', 'firstNameHi': '', 'middleName': '', 'middleNameHi': '', 'lastName': '', 'lastNameHi': '',
       'gender': 'Male', 'email': '', 'phone': '', 'howKnow': '', 'emergencyMobile': '', 'whatsapp': '', 'aadhar': '',
       'password': '', 'confirm': '',
-      'dob': '', 'maritalStatus': 'Unmarried', 'spouseName': '', 'spousePhone': '', 'caste': 'General',
+      'dob': '', 'caste': 'General',
       'photoData': '', 'photoName': '', 'signatureData': '', 'signatureName': '',
-      'permanentAddress': '', 'contactNo': '', 'mobileNo': '', 'country': 'India', 'state': '', 'city': '', 'pinCode': '',
+      'permanentAddress': '', 'country': 'India', 'state': '', 'city': '', 'pinCode': '',
       'stateDomicile': '', 'addressType': 'same', 'currentAddress': '', 'currentCity': '', 'currentState': '', 'currentPinCode': '',
       'fatherFirstMiddle': '', 'fatherFirstMiddleHi': '', 'fatherLastName': '', 'fatherLastNameHi': '', 'fatherPhone': '',
       'fatherEmail': '', 'fatherOccupation': 'Govt.', 'fatherOrg': '', 'fatherPost': '',
@@ -73,7 +86,7 @@ Map<String, String> _blankFields() => {
       'motherEmail': '', 'motherOccupation': 'Govt.', 'motherOrg': '', 'motherPost': '',
       'guardianName': '', 'guardianRelation': '', 'guardianPhoneResi': '', 'guardianMobile': '',
       'lastInstitution': '', 'lastExamYear': '', 'lastExamPercentage': '', 'resultStatus': 'Pass', 'gapInStudy': 'No',
-      'lateralEntry': 'No', 'courseGroup': 'Graduation', 'courseId': '', 'amount': '', 'medium': 'English', 'remarks': '',
+      'lateralEntry': 'No', 'courseGroup': 'Primary', 'courseId': '', 'amount': '', 'medium': 'English', 'remarks': '',
     };
 
 class _AcademicRow {
@@ -173,6 +186,26 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
     }).toList();
   }
 
+  String _courseNameFor(String id) =>
+      (ref.read(coursesProvider).valueOrNull ?? const <Course>[]).where((c) => c.id == id).map((c) => c.name).firstOrNull ?? '';
+
+  // Play Group/Nursery applicants are freshers with no prior schooling, so
+  // neither the Educational Details (step 4) nor Academic Details + Documents
+  // (step 5) apply to them.
+  bool get _isNurseryOrPlayGroup {
+    final name = _courseNameFor(_f['courseId']!);
+    return name == 'Nursery' || name == 'Play Group';
+  }
+
+  Future<void> _showMinAgeAlert() => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Not eligible'),
+          content: const Text('Minimum age is 2.5 years.'),
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
+        ),
+      );
+
   // ============================== VALIDATION ==============================
 
   String _validateStep(int s) {
@@ -193,19 +226,14 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
       if (f['dob']!.isEmpty) return 'Please enter your date of birth.';
       final d = DateTime.tryParse(f['dob']!);
       if (d == null || d.isAfter(DateTime.now())) return 'Please enter a valid date of birth.';
-      if (f['maritalStatus'] == 'Married' && (f['spouseName']!.trim().isEmpty || f['spousePhone']!.trim().isEmpty)) {
-        return "Please enter spouse name and phone number.";
-      }
-      if (f['spousePhone']!.trim().isNotEmpty && !_phoneRe.hasMatch(f['spousePhone']!.trim())) return 'Spouse phone number must be exactly 10 digits.';
+      if (_isUnderAge(f['dob']!)) return 'The child must be at least 2½ years old as of today to apply for admission.';
       if (_fileErr['photo']!.isNotEmpty || _fileErr['signature']!.isNotEmpty) return 'Please fix the file upload errors before continuing.';
       return '';
     }
     if (s == 2) {
-      if (f['permanentAddress']!.trim().isEmpty || f['contactNo']!.trim().isEmpty || f['mobileNo']!.trim().isEmpty || f['country']!.trim().isEmpty || f['state']!.isEmpty || f['city']!.trim().isEmpty || f['pinCode']!.trim().isEmpty || f['stateDomicile']!.isEmpty) {
+      if (f['permanentAddress']!.trim().isEmpty || f['country']!.trim().isEmpty || f['state']!.isEmpty || f['city']!.trim().isEmpty || f['pinCode']!.trim().isEmpty || f['stateDomicile']!.isEmpty) {
         return 'Please complete all required address fields.';
       }
-      if (!_phoneRe.hasMatch(f['contactNo']!.trim())) return 'Contact number must be exactly 10 digits.';
-      if (!_phoneRe.hasMatch(f['mobileNo']!.trim())) return 'Mobile number must be exactly 10 digits.';
       if (!_pinRe.hasMatch(f['pinCode']!.trim())) return 'PIN code must be exactly 6 digits.';
       if (f['addressType'] == 'different') {
         if (f['currentAddress']!.trim().isEmpty || f['currentCity']!.trim().isEmpty || f['currentState']!.isEmpty || f['currentPinCode']!.trim().isEmpty) {
@@ -227,18 +255,23 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
       return '';
     }
     if (s == 4) {
-      if (f['lastExamYear']!.trim().isEmpty || f['lastExamPercentage']!.trim().isEmpty || f['resultStatus']!.isEmpty || f['courseGroup']!.isEmpty || f['courseId']!.isEmpty || f['medium']!.isEmpty) {
-        return 'Please complete all required fields and select a course.';
+      if (f['courseGroup']!.isEmpty || f['courseId']!.isEmpty || f['medium']!.isEmpty) return 'Please select a class.';
+      if (!_isNurseryOrPlayGroup) {
+        if (f['lastExamYear']!.trim().isEmpty || f['lastExamPercentage']!.trim().isEmpty || f['resultStatus']!.isEmpty) {
+          return 'Please complete all required fields and select a class.';
+        }
+        if (!_yearRe.hasMatch(f['lastExamYear']!.trim())) return 'Please enter a valid 4-digit passing year.';
       }
-      if (!_yearRe.hasMatch(f['lastExamYear']!.trim())) return 'Please enter a valid 4-digit passing year.';
       return '';
     }
     if (s == 5) {
-      if (_completeAcademicRows.isEmpty) return 'Add at least one academic record with Name, Board/University, and Passing Year filled in.';
-      if (_documentRows.any((r) => r.uploading)) return 'Please wait for the current upload to finish.';
-      if (_documentRows.any((r) => r.docErr.isNotEmpty)) return 'Please fix the upload error before continuing.';
-      if (_missingAcademicDocuments.isNotEmpty) {
-        return 'Please upload a matching document for: ${_missingAcademicDocuments.map((r) => r.name).join(", ")}.';
+      if (!_isNurseryOrPlayGroup) {
+        if (_completeAcademicRows.isEmpty) return 'Add at least one academic record with Name, Board/University, and Passing Year filled in.';
+        if (_documentRows.any((r) => r.uploading)) return 'Please wait for the current upload to finish.';
+        if (_documentRows.any((r) => r.docErr.isNotEmpty)) return 'Please fix the upload error before continuing.';
+        if (_missingAcademicDocuments.isNotEmpty) {
+          return 'Please upload a matching document for: ${_missingAcademicDocuments.map((r) => r.name).join(", ")}.';
+        }
       }
       if (!_agreeTerms) return 'Please accept the terms and conditions before continuing.';
       return '';
@@ -283,24 +316,13 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
           fe['confirm'] = 'Passwords do not match';
         }
       }
-      if (f['dob']!.isEmpty) fe['dob'] = 'Required';
-      if (f['maritalStatus'] == 'Married') {
-        if (f['spouseName']!.trim().isEmpty) fe['spouseName'] = 'Required';
-        if (f['spousePhone']!.trim().isEmpty) fe['spousePhone'] = 'Required';
+      if (f['dob']!.isEmpty) {
+        fe['dob'] = 'Required';
+      } else if (_isUnderAge(f['dob']!)) {
+        fe['dob'] = 'Must be at least 2½ years old';
       }
-      if (f['spousePhone']!.trim().isNotEmpty && !_phoneRe.hasMatch(f['spousePhone']!.trim())) fe['spousePhone'] = 'Must be 10 digits';
     } else if (s == 2) {
       if (f['permanentAddress']!.trim().isEmpty) fe['permanentAddress'] = 'Required';
-      if (f['contactNo']!.trim().isEmpty) {
-        fe['contactNo'] = 'Required';
-      } else if (!_phoneRe.hasMatch(f['contactNo']!.trim())) {
-        fe['contactNo'] = 'Must be 10 digits';
-      }
-      if (f['mobileNo']!.trim().isEmpty) {
-        fe['mobileNo'] = 'Required';
-      } else if (!_phoneRe.hasMatch(f['mobileNo']!.trim())) {
-        fe['mobileNo'] = 'Must be 10 digits';
-      }
       if (f['country']!.trim().isEmpty) fe['country'] = 'Required';
       if (f['state']!.isEmpty) fe['state'] = 'Required';
       if (f['city']!.trim().isEmpty) fe['city'] = 'Required';
@@ -338,13 +360,15 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
       }
       if (f['motherOrg']!.trim().isEmpty) fe['motherOrg'] = 'Required';
     } else if (s == 4) {
-      if (f['lastExamYear']!.trim().isEmpty) {
-        fe['lastExamYear'] = 'Required';
-      } else if (!_yearRe.hasMatch(f['lastExamYear']!.trim())) {
-        fe['lastExamYear'] = 'Enter a valid 4-digit year';
+      if (!_isNurseryOrPlayGroup) {
+        if (f['lastExamYear']!.trim().isEmpty) {
+          fe['lastExamYear'] = 'Required';
+        } else if (!_yearRe.hasMatch(f['lastExamYear']!.trim())) {
+          fe['lastExamYear'] = 'Enter a valid 4-digit year';
+        }
+        if (f['lastExamPercentage']!.trim().isEmpty) fe['lastExamPercentage'] = 'Required';
       }
-      if (f['lastExamPercentage']!.trim().isEmpty) fe['lastExamPercentage'] = 'Required';
-      if (f['courseId']!.isEmpty) fe['courseId'] = 'Please select a course below';
+      if (f['courseId']!.isEmpty) fe['courseId'] = 'Please select a class below';
     }
     return fe;
   }
@@ -369,6 +393,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
         _err = e;
         _justSaved = false;
       });
+      if (_step == 1 && _isUnderAge(_f['dob']!)) _showMinAgeAlert();
       return false;
     }
     setState(() {
@@ -411,6 +436,18 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
   }
 
   void _goNext() {
+    // Re-check even an already-saved step: a draft saved before a rule was
+    // added (e.g. the minimum age) must not be able to skip past it.
+    final e = _validateStep(_step);
+    if (e.isNotEmpty) {
+      setState(() {
+        _attempted = true;
+        _err = e;
+        _justSaved = false;
+      });
+      if (_step == 1 && _isUnderAge(_f['dob']!)) _showMinAgeAlert();
+      return;
+    }
     if (_dirty || _savedUpTo < _step) {
       setState(() => _navErr = 'Please save this step before continuing — tap "Save Step" first.');
       return;
@@ -433,6 +470,18 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
   }
 
   Future<void> _submitFinal() async {
+    // Earlier steps may have been saved under older rules — send the
+    // applicant back to the first one that no longer passes.
+    for (var s = 1; s <= 4; s++) {
+      final stepErr = _validateStep(s);
+      if (stepErr.isNotEmpty) {
+        setState(() {
+          _step = s;
+          _err = stepErr;
+        });
+        return;
+      }
+    }
     setState(() => _attempted = true);
     final e = _validateStep(5);
     if (e.isNotEmpty) {
@@ -763,11 +812,6 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
             ),
           ),
         ),
-        ApplyChoiceRow(label: 'Marital Status', required: true, value: _f['maritalStatus']!, options: const ['Unmarried', 'Married'], onChanged: (v) => _set('maritalStatus', v)),
-        if (_f['maritalStatus'] == 'Married') ...[
-          ApplyField(label: 'Spouse Name', required: true, initialValue: _f['spouseName'], error: fe['spouseName'], onChanged: (v) => _set('spouseName', v)),
-          ApplyField(label: 'Spouse Phone Number', required: true, initialValue: _f['spousePhone'], error: fe['spousePhone'], keyboardType: TextInputType.phone, onChanged: (v) => _set('spousePhone', v)),
-        ],
         ApplyChoiceRow(label: 'Caste Category', required: true, value: _f['caste']!, options: const ['General', 'OBC', 'SC', 'ST', 'EWS'], onChanged: (v) => _set('caste', v)),
         const SectionLabel('Uploads'),
         _FileUploadTile(label: 'Photo', hint: 'JPG / JPEG / PNG, under 512KB', fileName: _f['photoName']!, error: _fileErr['photo']!, onPick: () => _pickPhotoOrSignature('photo')),
@@ -777,12 +821,15 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
   }
 
   Future<void> _pickDob() async {
-    final initial = DateTime.tryParse(_f['dob']!.isEmpty ? '' : _f['dob']!) ?? DateTime(2000, 1, 1);
+    // The picker stops at the youngest admissible DOB, so an under-age date
+    // can't be picked at all; the alert covers drafts saved before this rule.
+    final latest = _latestAdmissibleDob();
+    final current = DateTime.tryParse(_f['dob']!.isEmpty ? '' : _f['dob']!);
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial,
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
+      initialDate: current == null || current.isAfter(latest) ? latest : current,
+      firstDate: DateTime(1990),
+      lastDate: latest,
     );
     if (picked != null) _set('dob', DateFormat('yyyy-MM-dd').format(picked));
   }
@@ -795,8 +842,6 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
       children: [
         const SectionLabel('Permanent Address', topPad: 0),
         ApplyField(label: 'Permanent Address', required: true, initialValue: _f['permanentAddress'], error: fe['permanentAddress'], maxLines: 3, onChanged: (v) => _set('permanentAddress', v)),
-        ApplyField(label: 'Contact No.', required: true, initialValue: _f['contactNo'], error: fe['contactNo'], keyboardType: TextInputType.phone, onChanged: (v) => _set('contactNo', v)),
-        ApplyField(label: 'Mobile No.', required: true, initialValue: _f['mobileNo'], error: fe['mobileNo'], keyboardType: TextInputType.phone, onChanged: (v) => _set('mobileNo', v)),
         ApplyField(label: 'Country', required: true, initialValue: _f['country'], error: fe['country'], onChanged: (v) => _set('country', v)),
         ApplyDropdown(label: 'State', required: true, value: _f['state'], options: _indiaStates, error: fe['state'], hint: 'Select State', onChanged: (v) => _set('state', v ?? '')),
         ApplyField(label: 'City', required: true, initialValue: _f['city'], error: fe['city'], onChanged: (v) => _set('city', v)),
@@ -855,27 +900,30 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
   Widget _buildStep4(Map<String, String> fe) {
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.valueOrNull ?? const <Course>[];
-    final groupCourses = courses.where((c) => (c.group ?? 'Graduation') == _f['courseGroup']).toList();
+    final groupCourses = courses.where((c) => (c.group ?? 'Primary') == _f['courseGroup']).toList();
+    final fresher = _isNurseryOrPlayGroup;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('Educational Details', topPad: 0),
+        if (!fresher) ...[
+          const SectionLabel('Educational Details', topPad: 0),
         ApplyField(label: 'Last Institution Attended', initialValue: _f['lastInstitution'], hintText: 'School / College / University name', onChanged: (v) => _set('lastInstitution', v)),
         ApplyField(label: 'Last Exam Passed Out Year', required: true, initialValue: _f['lastExamYear'], error: fe['lastExamYear'], hintText: 'e.g. 2024', keyboardType: TextInputType.number, onChanged: (v) => _set('lastExamYear', v)),
         ApplyField(label: 'Last Exam Percentage', required: true, initialValue: _f['lastExamPercentage'], error: fe['lastExamPercentage'], hintText: 'e.g. 78%', onChanged: (v) => _set('lastExamPercentage', v)),
         ApplyDropdown(label: 'Result of Qualifying Exam', required: true, value: _f['resultStatus'], options: const ['Pass', 'Supplementary', 'Result Awaited'], onChanged: (v) => _set('resultStatus', v ?? '')),
         ApplyChoiceRow(label: 'Gap Between Study', value: _f['gapInStudy']!, options: const ['No', 'Yes'], onChanged: (v) => _set('gapInStudy', v)),
         ApplyChoiceRow(label: 'Lateral Entry', value: _f['lateralEntry']!, options: const ['No', 'Yes'], onChanged: (v) => _set('lateralEntry', v)),
+        ],
         ApplyChoiceRow(label: 'Medium', required: true, value: _f['medium']!, options: const ['English', 'Hindi'], onChanged: (v) => _set('medium', v)),
-        const SectionLabel('Course Selection'),
+        const SectionLabel('Class Selection'),
         if (fe['courseId'] != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(fe['courseId']!, style: const TextStyle(color: AppColors.danger, fontSize: 11.5))),
         ApplyDropdown(
-          label: 'Course Group',
+          label: 'Class Group',
           value: _f['courseGroup'],
           options: _courseGroups,
           onChanged: (v) => setState(() {
-            _f['courseGroup'] = v ?? 'Graduation';
+            _f['courseGroup'] = v ?? 'Primary';
             _f['courseId'] = '';
             _f['amount'] = '';
             _dirty = true;
@@ -888,7 +936,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
           child: coursesAsync.isLoading
               ? const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
               : groupCourses.isEmpty
-                  ? const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('No courses currently offered in this group.', style: TextStyle(color: AppColors.slate))))
+                  ? const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('No classes currently offered in this group.', style: TextStyle(color: AppColors.slate))))
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -908,7 +956,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
                       ],
                     ),
         ),
-        ApplyField(key: ValueKey('amount-${_f['amount']}'), label: 'Amount', readOnly: true, initialValue: _f['amount']!.isEmpty ? '' : '₹${_inr.format(num.tryParse(_f['amount']!) ?? 0)}', hintText: 'Auto-filled on course selection', onChanged: (_) {}),
+        ApplyField(key: ValueKey('amount-${_f['amount']}'), label: 'Amount', readOnly: true, initialValue: _f['amount']!.isEmpty ? '' : '₹${_inr.format(num.tryParse(_f['amount']!) ?? 0)}', hintText: 'Auto-filled on class selection', onChanged: (_) {}),
         ApplyField(label: 'Remarks', initialValue: _f['remarks'], maxLines: 3, onChanged: (v) => _set('remarks', v)),
       ],
     );
@@ -922,13 +970,21 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
     final config = paymentsConfigAsync.valueOrNull;
     final amount = num.tryParse(_f['amount'] ?? '') ?? 0;
 
+    final fresher = _isNurseryOrPlayGroup;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (fresher)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Text('No prior academic records or documents are required for ${_courseNameFor(_f['courseId']!)} admission.', style: const TextStyle(fontSize: 12.5, color: AppColors.slate)),
+          ),
+        if (!fresher) ...[
         const SectionLabel('Academic Details', topPad: 0),
         const Padding(
           padding: EdgeInsets.only(bottom: 12),
-          child: Text("Add every qualifying exam you've passed (e.g. 10th, 12th, Graduation) — you'll need to upload a matching document below for each one.", style: TextStyle(fontSize: 12.5, color: AppColors.slate)),
+          child: Text("Add your previous school/class records, if any (e.g. previous class report card, 10th/12th board result) — one row each. You'll need to upload a matching document below for each one.", style: TextStyle(fontSize: 12.5, color: AppColors.slate)),
         ),
         for (final r in _academicRows) _AcademicRowCard(row: r, onChanged: () => setState(() => _dirty = true), onRemove: _academicRows.length > 1 ? () => setState(() => _academicRows.remove(r)) : null),
         Padding(
@@ -965,6 +1021,7 @@ class _AdmissionApplyScreenState extends ConsumerState<AdmissionApplyScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text('Missing a matching document for: ${missingDocs.map((r) => r.name).join(", ")}.', style: const TextStyle(color: AppColors.danger, fontSize: 11.5)),
           ),
+        ],
         const SectionLabel('Admission Fee Payment'),
         Card(
           margin: const EdgeInsets.only(bottom: 18),
