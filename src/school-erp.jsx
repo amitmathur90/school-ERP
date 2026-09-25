@@ -1291,9 +1291,13 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (!PHONE_RE.test(f.emergencyMobile.trim())) return "Emergency mobile number must be exactly 10 digits.";
       if (f.whatsapp.trim() && !PHONE_RE.test(f.whatsapp.trim())) return "WhatsApp number must be exactly 10 digits.";
       if (f.aadhar.trim() && !AADHAR_RE.test(f.aadhar.trim())) return "Aadhar number must be exactly 12 digits.";
-      if (existingEmails.includes(f.email.trim().toLowerCase())) return "An account with this email already exists. Please sign in instead.";
-      if (f.password.length < 6) return "Password must be at least 6 characters.";
-      if (f.password !== f.confirm) return "Passwords do not match.";
+      // Email and password are locked once a draft exists (and the draft's own
+      // email may already be in existingEmails), so only check them up front.
+      if (!draftId) {
+        if (existingEmails.includes(f.email.trim().toLowerCase())) return "An account with this email already exists. Please sign in instead.";
+        if (f.password.length < 6) return "Password must be at least 6 characters.";
+        if (f.password !== f.confirm) return "Passwords do not match.";
+      }
       if (!f.dob) return "Please enter your date of birth.";
       const d = new Date(f.dob);
       if (isNaN(d.getTime()) || d > new Date()) return "Please enter a valid date of birth.";
@@ -1362,7 +1366,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   const doSave = async () => {
     setAttempted(true);
     const e = validateStep(step);
-    if (e) { setErr(e); setJustSaved(false); return false; }
+    if (e) {
+      setErr(e); setJustSaved(false);
+      if (step === 1 && f.dob && f.dob > latestAdmissibleDob()) window.alert("Minimum age is 2.5 years.");
+      return false;
+    }
     setErr(""); setSaving(true);
     try {
       if (step === 5) {
@@ -1387,12 +1395,26 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
   };
 
   const goNext = () => {
+    // Re-check even an already-saved step: a draft saved before a rule was
+    // added (e.g. the minimum age) must not be able to skip past it.
+    const e = validateStep(step);
+    if (e) {
+      setAttempted(true); setErr(e); setJustSaved(false);
+      if (step === 1 && f.dob && f.dob > latestAdmissibleDob()) window.alert("Minimum age is 2.5 years.");
+      return;
+    }
     if (dirty || savedUpTo < step) { setNavErr("Please save this step before continuing — click \"Save Step\" first."); return; }
     setNavErr(""); setErr(""); setStep((s) => Math.min(5, s + 1)); window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const goBack = () => { setErr(""); setNavErr(""); setStep((s) => Math.max(1, s - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const submitFinal = async () => {
+    // Earlier steps may have been saved under older rules — send the
+    // applicant back to the first one that no longer passes.
+    for (let s = 1; s <= 4; s++) {
+      const stepErr = validateStep(s);
+      if (stepErr) { setStep(s); setErr(stepErr); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    }
     setAttempted(true);
     const e = validateStep(5);
     if (e) { setErr(e); return; }
@@ -1432,9 +1454,11 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     else if (!PHONE_RE.test(f.emergencyMobile.trim())) fe.emergencyMobile = "Must be 10 digits";
     if (f.whatsapp.trim() && !PHONE_RE.test(f.whatsapp.trim())) fe.whatsapp = "Must be 10 digits";
     if (f.aadhar.trim() && !AADHAR_RE.test(f.aadhar.trim())) fe.aadhar = "Must be 12 digits";
-    if (!f.password) fe.password = "Required";
+    if (draftId) { /* password is locked once the draft exists */ }
+    else if (!f.password) fe.password = "Required";
     else if (f.password.length < 6) fe.password = "Min 6 characters";
-    if (!f.confirm) fe.confirm = "Required";
+    if (draftId) { /* locked */ }
+    else if (!f.confirm) fe.confirm = "Required";
     else if (f.password !== f.confirm) fe.confirm = "Passwords do not match";
     if (!f.dob) fe.dob = "Required";
     else if (f.dob > latestAdmissibleDob()) fe.dob = "Must be at least 2½ years old";
@@ -1521,7 +1545,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
 
               <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Personal Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: set("dob"), max: latestAdmissibleDob() }} />
+                <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: (e) => { set("dob")(e); if (e.target.value && e.target.value > latestAdmissibleDob()) window.alert("Minimum age is 2.5 years."); }, max: latestAdmissibleDob() }} />
               </div>
               <div style={{ marginBottom: 18 }}>
                 <label>Caste Category *</label>
