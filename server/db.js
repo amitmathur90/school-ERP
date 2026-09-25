@@ -525,6 +525,17 @@ async function ensureColumn(table, column, ddl) {
   }
 }
 
+// Class 11 and 12 are offered per stream. Same row shape as the default
+// classes seeded in init(): [id, name, code, duration, seats, fee, admission_fee, course_group].
+const SENIOR_SECONDARY_STREAMS = [
+  ["c-c11-sci", "Class 11 Science", "XI-SCI", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+  ["c-c11-com", "Class 11 Commerce", "XI-COM", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+  ["c-c11-arts", "Class 11 Arts", "XI-ARTS", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+  ["c-c12-sci", "Class 12 Science", "XII-SCI", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+  ["c-c12-com", "Class 12 Commerce", "XII-COM", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+  ["c-c12-arts", "Class 12 Arts", "XII-ARTS", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+];
+
 async function init() {
   await pool.query(SCHEMA_SQL);
   await ensureColumn("students", "extra_fields", "TEXT");
@@ -614,8 +625,7 @@ async function init() {
       ["c-c8", "Class 8", "VIII", "1 Year", 50, 35000, 7000, "Middle"],
       ["c-c9", "Class 9", "IX", "1 Year", 50, 38000, 8000, "Secondary"],
       ["c-c10", "Class 10", "X", "1 Year", 50, 38000, 8000, "Secondary"],
-      ["c-c11", "Class 11", "XI", "1 Year", 40, 42000, 9000, "Senior Secondary"],
-      ["c-c12", "Class 12", "XII", "1 Year", 40, 42000, 9000, "Senior Secondary"],
+      ...SENIOR_SECONDARY_STREAMS,
     ];
     for (const row of defaults) {
       await db.run(
@@ -623,7 +633,29 @@ async function init() {
         row
       );
     }
-    console.log("Seeded default classes (Nursery through Class 12).");
+    console.log("Seeded default classes (Play Group through Class 12).");
+  } else {
+    // Databases seeded before Class 11/12 were split by stream: add the
+    // Science/Commerce/Arts classes, then retire the old stream-less
+    // "Class 11"/"Class 12" rows — but only if no student is enrolled in or
+    // applying to them, so existing records never lose their class.
+    for (const row of SENIOR_SECONDARY_STREAMS) {
+      const exists = await db.get("SELECT id FROM courses WHERE id = ?", [row[0]]);
+      if (!exists) {
+        await db.run(
+          `INSERT INTO courses (id, name, code, duration, seats, fee, admission_fee, course_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          row
+        );
+        console.log(`Migrated: added class ${row[1]}`);
+      }
+    }
+    for (const oldId of ["c-c11", "c-c12"]) {
+      const inUse = await db.get("SELECT id FROM students WHERE course_id = ? LIMIT 1", [oldId]);
+      if (!inUse) {
+        const removed = await db.run("DELETE FROM courses WHERE id = ?", [oldId]);
+        if (removed && removed.changes) console.log(`Migrated: removed stream-less class ${oldId}`);
+      }
+    }
   }
 
   const librarySettingsCount = (await db.get("SELECT COUNT(*) AS n FROM library_settings")).n;

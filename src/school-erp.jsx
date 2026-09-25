@@ -152,6 +152,16 @@ const PHONE_RE = /^[0-9]{10}$/;
 const PIN_RE = /^[0-9]{6}$/;
 const AADHAR_RE = /^[0-9]{12}$/;
 
+// Youngest admissible applicant (Play Group) is 2½ years old on the day the
+// form is filled in. Returns the latest allowed DOB as YYYY-MM-DD in local
+// time, so it can be compared directly against the <input type="date"> value.
+const MIN_ADMISSION_AGE_MONTHS = 30;
+const latestAdmissibleDob = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - MIN_ADMISSION_AGE_MONTHS);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const CATEGORIES = ["General", "OBC", "SC", "ST", "EWS"];
 const EXAM_TYPES = ["Unit Test", "Mid-Term", "Final Exam", "Class Test", "Annual Exam"];
 
@@ -1287,14 +1297,13 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
       if (!f.dob) return "Please enter your date of birth.";
       const d = new Date(f.dob);
       if (isNaN(d.getTime()) || d > new Date()) return "Please enter a valid date of birth.";
+      if (f.dob > latestAdmissibleDob()) return "The child must be at least 2½ years old as of today to apply for admission.";
       if (fileErr.photo || fileErr.signature) return "Please fix the file upload errors before continuing.";
       return "";
     }
     if (s === 2) {
-      if (!f.permanentAddress.trim() || !f.contactNo.trim() || !f.mobileNo.trim() || !f.country.trim() || !f.state || !f.city.trim() || !f.pinCode.trim() || !f.stateDomicile)
+      if (!f.permanentAddress.trim() || !f.country.trim() || !f.state || !f.city.trim() || !f.pinCode.trim() || !f.stateDomicile)
         return "Please complete all required address fields.";
-      if (!PHONE_RE.test(f.contactNo.trim())) return "Contact number must be exactly 10 digits.";
-      if (!PHONE_RE.test(f.mobileNo.trim())) return "Mobile number must be exactly 10 digits.";
       if (!PIN_RE.test(f.pinCode.trim())) return "PIN code must be exactly 6 digits.";
       if (f.addressType === "different") {
         if (!f.currentAddress.trim() || !f.currentCity.trim() || !f.currentState || !f.currentPinCode.trim())
@@ -1428,12 +1437,9 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
     if (!f.confirm) fe.confirm = "Required";
     else if (f.password !== f.confirm) fe.confirm = "Passwords do not match";
     if (!f.dob) fe.dob = "Required";
+    else if (f.dob > latestAdmissibleDob()) fe.dob = "Must be at least 2½ years old";
   } else if (step === 2) {
     if (!f.permanentAddress.trim()) fe.permanentAddress = "Required";
-    if (!f.contactNo.trim()) fe.contactNo = "Required";
-    else if (!PHONE_RE.test(f.contactNo.trim())) fe.contactNo = "Must be 10 digits";
-    if (!f.mobileNo.trim()) fe.mobileNo = "Required";
-    else if (!PHONE_RE.test(f.mobileNo.trim())) fe.mobileNo = "Must be 10 digits";
     if (!f.country.trim()) fe.country = "Required";
     if (!f.state) fe.state = "Required";
     if (!f.city.trim()) fe.city = "Required";
@@ -1515,7 +1521,7 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
 
               <div className="eyebrow" style={{ margin: "18px 0 10px" }}>Personal Details</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: set("dob") }} />
+                <Field label="Date of Birth *" error={fe.dob} inputProps={{ type: "date", value: f.dob, onChange: set("dob"), max: latestAdmissibleDob() }} />
               </div>
               <div style={{ marginBottom: 18 }}>
                 <label>Caste Category *</label>
@@ -1534,8 +1540,6 @@ function AdmissionForm({ courses, existingEmails, resumeStudent, resumeAcademic,
               <div className="eyebrow" style={{ marginBottom: 10 }}>Permanent Address</div>
               <Field label="Permanent Address *" error={fe.permanentAddress} as="textarea" inputProps={{ value: f.permanentAddress, onChange: set("permanentAddress") }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <Field label="Contact No. *" error={fe.contactNo} inputProps={{ value: f.contactNo, onChange: set("contactNo") }} />
-                <Field label="Mobile No. *" error={fe.mobileNo} inputProps={{ value: f.mobileNo, onChange: set("mobileNo") }} />
                 <Field label="Country *" error={fe.country} inputProps={{ value: f.country, onChange: set("country") }} />
                 <Field label="State *" error={fe.state} as="select" selectProps={{ value: f.state, onChange: set("state") }}>
                   <option value="">Select State</option>
